@@ -1,0 +1,516 @@
+!/////////////////////////////////////////////////////
+! FRACTURE MODEL DATA
+! File Type: function
+! Specimen Type: SEN(B)
+! Scenario: 1/2 SEN(B) wedge or circ notch
+! Units: N, mm, MPa
+!/////////////////////////////////////////////////////
+
+FINISH
+/CLEAR,NOSTART
+/CWD,'C:\Users\Lloyd\Documents\ANSYS_WorkingDirectory\Model_ComplianceSENB'
+/PREP7
+
+/PNUM,KP,0
+/PNUM,LINE,0
+/PNUM,AREA,0
+
+!/////////////////////////////////////////////
+W = 4.5		! Characteristic Length
+!//////////////////////////////////////////////
+*AFUN,DEG
+EXSOLVE = 1
+USEARGS = 1
+
+*IF,USEARGS,EQ,1,THEN
+	!----------------------------------------------
+	! Define ARGS
+	ITER = ARG1
+	CLFACTOR = ARG2
+	MESHSIZE = ARG3
+	REFITER = ARG4
+*ELSE
+	!----------------------------------------------
+	! Define Default Vars 
+	ITER = 1
+	CLFACTOR = 0.5
+	MESHSIZE = 0.1
+	REFITER = 1
+*ENDIF
+
+!----------------------------------------------
+! default material  = aluminium
+! 1 = iso bone, 2 = iso plastic bone
+! 3 = ortho bone, 4 = ortho plastic bone
+BONEPROPS = 1		! Use bone material props
+
+! Define Flag Variables
+CIRCNOTCH = 1
+
+! DISPLACEMENT OF TOP ANVIL
+DEL = -0.1	! Top anvil displacement
+
+*IF,CIRCNOTCH,EQ,1,THEN
+	NWIDE = 1			! Flag used to determine notch width
+	SHARP = 0			! Use a 30deg notch instead of a round notch if true
+*ELSE
+	NWIDE = 0			! Flag used to determine notch width
+	SHARP = 1			! Use a 30deg notch instead of a round notch if true
+*ENDIF
+
+!----------------------------------------------
+! Define Geometry 
+A = CLFACTOR*W		! Crack length
+NL = 0.48*W		! Notch length
+AR = 1			! Anvil Radius
+
+*IF,NWIDE,EQ,1,THEN
+	NR = 1.5
+	WL = NR
+*ELSE
+	NR = 0.063*W/2
+	WL = NR/(1/sqrt(3))
+*ENDIF
+
+S = (4*W+2*AR)/2	! Half Beam Span	
+A0 = 0.495*W		! Initial crack length
+CU = 0.05*W			! Length of concentration of mesh ahead of crack tip   
+CL = 0.05*W			! Length of concentration of mesh behind crack   
+
+*IF,NR,GT,0.9,THEN	
+	CR = 0.01*W		! Radius of mesh concentration around notch
+*ELSE
+	CR = 0.01*W
+*ENDIF
+
+ATEST = A - A0
+CLTEST = CL+0.025*W
+
+NFLAG = 0			! Flag used to determine if the crack tip is near the starter notch
+*IF,CLTEST,GT,ATEST,THEN
+	NFLAG = 1
+*ELSE
+	NFLAG = 0
+*ENDIF
+
+!----------------------------------------------
+! Define Geometry 
+! Define Key Points
+K, 1,0,0
+K, 2,2*AR,0
+K, 3,S-NR-CR,0
+K, 4,S-NR,0
+K, 5,0,NL-WL
+K, 6,2*AR,NL-WL
+K, 7,S-NR-CR,NL-WL
+K, 8,S-NR,NL-WL
+K, 9,0,A0
+K,10,2*AR,A0
+K,11,S-NR-CR,A0
+K,12,S,A0
+K,13,0,A
+K,14,2*AR,A
+K,15,S-NR-CR,A
+K,16,S,A
+K,17,0,A+CU
+K,18,2*AR,A+CU 
+K,19,S-NR-CR,A+CU
+K,20,S,A+CU
+K,21,0,W
+K,22,2*AR,W
+K,23,S-NR-CR,W
+K,24,S,W
+K,25,S,NL-NR
+K,26,S,NL
+! Create additional key points if crack tip is far from circ notch
+*IF,NFLAG,EQ,0,THEN
+	K,27,0,A-CL
+	K,28,2*AR,A-CL
+	K,29,S-NR-CR,A-CL
+	K,30,S,A-CL
+*ENDIF
+
+!----------------------------------------------
+! Define Lines
+L,1,2
+L,2,3
+L,3,4
+L,5,6
+L,6,7
+L,7,8
+L,9,10
+L,10,11
+L,11,12
+L,13,14
+L,14,15
+L,15,16
+L,17,18
+L,18,19
+L,19,20
+L,21,22
+L,22,23
+L,23,24
+L,1,5
+L,5,9
+L,13,17
+L,17,21
+L,2,6
+L,6,10
+L,14,18
+L,18,22
+L,3,7
+L,7,11
+L,15,19
+L,19,23
+L,4,8
+L,16,20
+L,20,24
+L,12,26
+*IF,SHARP,EQ,1,THEN
+	L,8,26
+*ELSE
+	LARC,8,26,25,NR
+*ENDIF
+
+CYL4,AR,-AR,AR
+CYL4,S,W+AR,AR,90,,270
+
+*IF,NFLAG,EQ,1,THEN
+	L,9,13
+	L,10,14
+	L,11,15
+	L,12,16
+*ELSE
+	L,9,27
+	L,10,28
+	L,11,29
+	L,12,30
+	L,27,28
+	L,28,29
+	L,29,30
+	L,27,13
+	L,28,14
+	L,29,15
+	L,30,16
+*ENDIF
+
+!----------------------------------------------
+! Create Areas
+AL,6,28,9,34,35
+AL,1,19,4,23
+AL,23,5,2,27
+AL,27,3,31,6
+AL,4,20,7,24
+AL,24,8,28,5
+AL,10,21,13,25
+AL,25,11,14,29
+AL,29,12,15,32
+AL,22,13,16,26
+AL,14,26,17,30
+AL,30,15,18,33
+
+*IF,NFLAG,EQ,1,THEN
+	AL,43,7,44,10
+	AL,44,8,11,45
+	AL,45,9,46,12	
+*ELSE
+	AL,7,43,47,44
+	AL,44,8,48,45
+	AL,45,9,46,49
+	AL,50,10,47,51
+	AL,51,11,48,52
+	AL,52,12,49,53
+*ENDIF
+
+!----------------------------------------------
+! Material Properties
+! BONE PROPERTIES
+*IF,BONEPROPS,EQ,1,THEN
+	! ISO BONE
+	MP,EX,1,23100
+	MP,PRXY,1,0.325
+*ELSEIF,BONEPROPS,EQ,2,THEN
+	! ISO PLASTIC BONE
+	MP,EX,1,23100
+	MP,PRXY,1,0.325
+	TB,BISO,1
+	TBDATA,1,132 ! Yield stress (MPa)
+	TBDATA,2,693 ! Tangent modulus (MPa)	
+*ELSEIF,BONEPROPS,EQ,3,THEN
+	! ORTHO BONE (LONG FRAC)
+	MP,EX,1,23100
+	MP,EY,1,10400
+	MP,EZ,1,10400
+	
+	MP,GXY,1,3600	
+	MP,GYZ,1,3600	
+	MP,GXZ,1,3600	
+	
+	MP,PRXY,1,0.29
+	MP,PRYZ,1,0.51
+	MP,PRXZ,1,0.29	
+*ELSEIF,BONEPROPS,EQ,4,THEN
+	! ORTHO BONE (TRANS FRAC)
+	MP,EX,1,10400
+	MP,EY,1,23100
+	MP,EZ,1,10400
+	
+	MP,GXY,1,3600	
+	MP,GYZ,1,3600	
+	MP,GXZ,1,3600
+	
+	MP,PRXY,1,0.29
+	MP,PRYZ,1,0.29
+	MP,PRXZ,1,0.51
+*ELSE
+	MP,EX,1,70000
+	MP,PRXY,1,0.33
+*ENDIF
+
+! Anvil Properties
+MP,EX,2,200000
+MP,PRXY,2,0.3
+!----------------------------------------------
+! Meshing and Element Type
+! use a quad element with plane stress
+ET,1,plane183,0,,0
+
+P1 = MESHSIZE
+P2 = 1.75*P1
+
+ASEL,S,,,1,2
+LSLA
+LESIZE,ALL,P2
+ALLSEL
+
+! MESH THE PINS WITH TETS AND STEEL
+MSHAPE,1
+MSHKEY,2
+MAT,2
+AMESH,1,2
+
+! MESH EVERYTHING ELSE WITH QUADS AND BONE
+MSHAPE,0
+MSHKEY,2
+MAT,1
+
+! LINE SIZE EVERYTHING ELSE
+LESIZE,ALL,P1
+LCCAT,9,28
+
+*IF,NFLAG,EQ,1,THEN
+	ASEL,S,,,3,17
+*ELSE
+	ASEL,S,,,3,20
+*ENDIF
+AMESH,ALL
+ALLSEL
+
+!---------------------------------------------
+! Refine Contact Surface Mesh
+! Top specimen surface
+LSEL,S,,,17,18
+NSLL,S,1
+NSEL,R,LOC,X,S-AR,S
+ESLN
+EREFINE,ALL,,,1,0,OFF,ON
+ALLSEL
+
+! Top anvil surface
+LSEL,S,LINE,,40
+NSLL,S,1
+ESLN
+EREFINE,ALL,,,1,0,OFF,ON
+ALLSEL
+
+! Contact on bottom of specimen
+LSEL,S,LINE,,1
+NSLL,S,1
+ESLN
+EREFINE,ALL,,,1,0,OFF,ON
+ALLSEL
+
+! Bottom Anvil
+LSEL,S,LINE,,36,37
+NSLL,S,1
+ESLN
+EREFINE,ALL,,,1,0,OFF,ON
+ALLSEL
+
+!---------------------------------------------
+! Refine Crack Tip Mesh
+*IF,REFITER,GT,0,THEN
+	*DO,I,1,REFITER
+		RDY = CL/REFITER
+		RDX = CL/REFITER	
+		NSEL,S,LOC,X,S,S-CL+(I-1)*RDY
+		NSEL,R,LOC,Y,A-CL+(I-1)*RDX,A+CU-(I-1)*RDX
+		ESLN
+		EREFINE,ALL,,,1,0,OFF,ON
+		ALLSEL
+	*ENDDO
+*ENDIF
+
+!---------------------------------------------
+! INELEGANT CODE TO GET ELEMENT SIZE
+CTIPELEM = 0
+SELCOUNT = 0
+MIN_EL = 0
+EAREA = 0
+ECOUNT = 0
+LSEL,S,,,32
+NSLL
+NSEL,R,LOC,Y,A,A+0.01*W
+ESLN
+*GET,SELCOUNT,ELEM,0,COUNT
+*GET,CTIPELEM,ELEM,0,NUM,MAX
+*GET,EAREA,ELEM,CTIPELEM,AREA
+*GET,ECOUNT,ELEM,0,NUM,MAXD
+MIN_EL = SQRT(EAREA)
+ALLSEL
+
+!---------------------------------------------
+! Define contact elements
+MP,MU,4,0 ! friction for contact = 0
+ET,3,TARGE169
+ET,4,CONTA172
+R,4,,,1,1,,1
+KEYOPT,4,2,0
+KEYOPT,4,5,1
+KEYOPT,4,9,1
+KEYOPT,4,10,2
+KEYOPT,4,12,0
+
+MP,MU,6,0 ! friction for contact = 0
+ET,5,TARGE169
+ET,6,CONTA172
+R,6,,,1,1,,-1
+KEYOPT,6,2,0
+KEYOPT,6,5,1
+KEYOPT,6,9,1
+KEYOPT,6,10,2
+KEYOPT,6,12,0
+
+! DEFINE CONTACT PAIR MESH
+! Contact surface on top of specimen
+LSEL,S,LOC,Y,W
+ESEL,S,CENT,X,S-AR,S
+NSLE,R,1
+NSLL,R,1
+TYPE,4
+MAT,4
+REAL,4
+ESURF
+ALLSEL
+
+! Top Anvil Surface
+LSEL,S,LINE,,40
+NSLL,S,1
+TYPE,3
+ESURF
+ALLSEL
+
+! Contact surface on bottom of specimen
+LSEL,S,LINE,,1
+NSLL,S,1
+TYPE,6
+MAT,6
+REAL,6
+ESURF
+ALLSEL
+
+! Bottom Anvil Surface
+LSEL,S,LINE,,36,37
+NSLL,S,1
+TYPE,5
+ESURF
+ALLSEL
+
+!----------------------------------------------
+! Define Loads and Boundary Conditions
+/SOLU
+ASEL,S,,,1
+NSLA,S,1
+D,ALL,ALL,0
+ALLSEL
+
+ASEL,S,,,2
+NSLA,S,1
+D,ALL,UX,0
+ALLSEL
+
+RNODE = -1
+NSEL,S,LOC,Y,W+AR
+NSEL,R,LOC,X,S
+D,ALL,UY,DEL
+*GET,RNODE,NODE,0,NUM,MAX
+ALLSEL
+
+LSEL,S,,,32,33
+NSLL,S,1
+DSYM,SYMM,X,
+ALLSEL
+
+!----------------------------------------------
+! Set up J-integral calc 
+! Define Crack Tip Coords
+NUMCONTS = 6
+CSKP,11,0,16,20,15,1,1,
+CSYS,11
+
+KSEL,S,,,16
+NSLK
+CM,CRACK_TIP_NODE_CM,NODE
+ALLSEL
+
+CINT,NEW,1
+CINT,CTNC,CRACK_TIP_NODE_CM
+CINT,NORM,11,2
+CINT,SYMM,ON
+CINT,NCON,NUMCONTS
+OUTRES,CINT,10 
+
+!----------------------------------------------
+! Solution Conditions
+! perform static analysis
+ANTYPE,0
+! use ramped loading
+KBC,0
+! Use automatic time stepping
+AUTOTS,ON
+! p1: number of substeps, p2: max substeps
+! p3: min substeps
+! ANSYS VM CT Jpl: NSUBST,10,1000,10
+NSUBST,20,500,10
+! non-linear geometry
+NLGEOM,ON
+! determines what is written to DB file
+OUTRES,ALL,ALL
+! sets time at the end of the load step
+TIME,1.0
+
+*IF,EXSOLVE,EQ,1,THEN
+SOLVE
+*ENDIF
+
+!----------------------------------------------
+! Post Processing
+/POST1
+J=0
+PRCINT,1,CTN_CM,JINT ! PRINT K VALUES
+*GET,J,CINT,1,CTIP,NODE(0,0,0),,5,,JINT ! GET J VALUE FOR CRACK TIP NODE	
+
+ALLSEL
+CSYS,0
+FYR = 0
+*GET,FYR,NODE,RNODE,RF,FY
+ALLSEL	
+
+FILENUM = CHRVAL(ITER)
+FILECL = CHRVAL(100*CLFACTOR) 
+FILEMS = CHRVAL(10*MESHSIZE)
+FILERI = CHRVAL(REFITER)
+*CFOPEN,SENBMR_%FILECL%_%FILEMS%_%FILERI%_%FILENUM%,csv
+*VWRITE,CLFACTOR,MESHSIZE,REFITER,MIN_EL,DEL,FYR,J,
+(F6.2,',',F10.5,',',F10.5,',',F10.5,',',F10.5,',',F10.5,',',F10.5)
+*CFCLOS

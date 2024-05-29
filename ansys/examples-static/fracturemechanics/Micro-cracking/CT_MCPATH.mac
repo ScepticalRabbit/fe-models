@@ -1,0 +1,738 @@
+!/////////////////////////////////////////////////////
+! FRACTURE MODEL DATA
+! File Type: stand alone
+! Specimen Type: C(T)
+! Scenario: Whole Microcrack Model
+! Units: N, mm, MPa
+!/////////////////////////////////////////////////////
+
+FINISH
+/CLEAR,NOSTART
+/CWD,'C:\Users\Lloyd\Documents\ANSYS_WorkingDirectory\Model_Microcracking'
+/PREP7
+
+/PNUM,KP,0
+/PNUM,LINE,0
+/PNUM,AREA,0
+
+!/////////////////////////////////////////////
+W = 12		! Characteristic Length
+!//////////////////////////////////////////////
+*AFUN,DEG
+
+!----------------------------------------------
+! Define ARGS
+ITER = 1
+CLFACT = 0.7		! cracklength = CLFACT*W
+
+! Displacement of top anvil
+DEL = 0.2
+REFITER = 3
+
+!----------------------------------------------
+! Define Misc Variables
+! default material  = aluminium
+! 1 = iso bone, 2 = iso plastic bone
+! 3 = ortho bone (long frac), 4 = ortho bone (trans frac)
+BONEPROPS = 1		! Use bone material props
+
+!----------------------------------------------
+! Define Geometry Variables
+CEXT = (CLFACT-0.5)*W	! crack extension from initial crack length
+NL = 0.49*W		! Notch length\
+!NW = 0.063*W/2	! Half Notch Width
+NW = 0.05*W/2
+*IF,NW,GT,0,THEN
+	WL = NW/(1/sqrt(3))	! Wedge Length
+*ELSE
+	WL = 0.655
+*ENDIF
+SNL = 0.01*W	! Scalpel Notch Length
+PR = 0.25*W/2	! Pin Radius
+PMR = 0.3*W/2	! Hole mesh square size
+PL = 0.275*W	! Pin Y Location
+
+CL = CLFACT*W		! Crack length
+CL0 = 0.49*W
+
+CF = 0.05*W		! concentration of mesh in front of crack
+CB = 0.05*W		! concentration of mesh behind crack
+CW = 0.05*W		! concentration width
+
+CLTEST = CL - CL0
+CBTEST = CB+0.025*W
+
+*IF,CBTEST,GT,CLTEST,THEN
+	NFLAG = 1
+*ELSE
+	NFLAG = 0
+*ENDIF
+
+!----------------------------------------------
+! Define Micro-crack Variables
+! test cases
+! align FI = 1, NUMMC = 42
+! offset FI = 31, NUMMC = 60
+! behind FI = 61, NUMMC = 252
+FI = 1
+NUMMC = 42
+S_FI = CHRVAL(FI)
+S_NUMMC = CHRVAL(NUMMC)
+
+RL = 0.8*W
+REXT = RL - 0.5*W
+NC = 120			! NUMBER OF COLUMNS
+EL_X = REXT/NC
+NR = 40			! NUMBER OF ROWS
+EL_Y = 2*CW/NR
+NUMA = NR*NC	! NUMBER OF AREAS
+
+XLOC = 0.5*W			! X POSITION OF RECTANGLE ARRAY, BOTTOM LH CORNER
+YLOC = -EL_Y*NR/2		! Y POSITION OF RECTANGLE ARRAY, BOTTOM LH CORNER
+
+! CREATE ARRAY OF MICROCRACK POINTS
+! INCLUDE
+NUMCRACKS = NUMMC
+*DIM,MCXY,ARRAY,2,NUMCRACKS
+*VREAD,MCXY(1,1),MC_%S_FI%_%S_NUMMC%,CSV,,NUMCRACKS
+(2F6.0)
+
+*DIM,MXY,ARRAY,NUMCRACKS,2
+*DO,J,1,NUMCRACKS
+	MXY(J,1) = MCXY(1,J)*EL_X + CL
+	MXY(J,2) = MCXY(2,J)*EL_Y  
+*ENDDO
+
+!----------------------------------------------
+! Define Key Points
+! FIXED KEYPOINTS
+K,1,-0.25*W,0.6*W
+K,2,-PMR,0.6*W
+K,3,PMR,0.6*W
+K,4,NL-WL,0.6*W
+K,5,NL+SNL,0.6*W
+K,6,-PMR,PL+PMR
+K,7,PMR,PL+PMR
+K,8,-PMR,PL-PMR
+K,9,PMR,PL-PMR
+K,10,NL-WL,CW
+K,11,NL+SNL,CW
+K,12,-0.25*W,NW
+K,13,-PMR,NW
+K,14,PMR,NW
+K,15,NL-WL,NW
+K,16,NL,0
+K,17,NL+SNL,0
+K,18,-0.25*W,-NW
+K,19,-PMR,-NW
+K,20,PMR,-NW
+K,21,NL-WL,-NW
+K,22,NL,0
+K,23,NL+SNL,0
+K,24,NL-WL,-CW
+K,25,NL+SNL,-CW
+K,26,-PMR,-PL+PMR
+K,27,PMR,-PL+PMR
+K,28,-PMR,-PL-PMR
+K,29,PMR,-PL-PMR
+K,30,-0.25*W,-0.6*W
+K,31,-PMR,-0.6*W
+K,32,PMR,-0.6*W
+K,33,NL-WL,-0.6*W
+K,34,NL+SNL,-0.6*W
+K,35,NL-WL,PL-PMR
+K,36,NL+SNL,PL-PMR
+K,37,NL-WL,-PL+PMR
+K,38,NL+SNL,-PL+PMR
+
+! TOP AND BOTTOM PINS
+K,39,0,0.275*W
+K,40,0,-0.275*W
+
+!///////////////////////////////////////////////
+! ADDITIONAL KPS
+! Top/Bottom Surface
+K,41,W,0.6*W
+K,42,0.88*W,PL-PMR
+K,43,W,PL-PMR
+K,44,W,-0.6*W
+K,45,0.88*W,-1*(PL-PMR)
+K,46,W,-1*(PL-PMR)
+K,47,0.88*W,0.6*W
+K,48,0.88*W,-0.6*W
+
+K,49,0.8*W,CW
+K,50,0.8*W,-CW
+
+!----------------------------------------------
+! Define Lines 
+! TOP AND BOTTOM PIN
+CIRCLE,39,PR
+CIRCLE,40,PR
+! TOP AND BOTTOM HOLE
+CIRCLE,39,PR
+CIRCLE,40,PR
+
+! Horizontal
+L,1,2
+L,2,3
+L,3,4
+L,4,5
+L,6,7
+L,8,9
+L,35,36
+L,10,11
+L,12,13
+L,13,14
+L,14,15
+L,18,19
+L,19,20
+L,20,21
+L,24,25
+L,26,27
+L,37,38
+L,28,29
+L,30,31
+L,31,32
+L,32,33
+L,33,34
+L,9,35
+L,27,37
+
+! Vertical
+L,1,12
+L,2,6
+L,6,8
+L,8,13
+L,3,7
+L,7,9
+L,9,14
+L,4,35
+L,35,10
+L,10,15
+L,5,36
+L,36,11
+L,18,30
+L,19,26
+L,26,28
+L,28,31
+L,20,27
+L,27,29
+L,29,32
+L,21,24
+L,24,37
+L,37,33
+L,25,38
+L,38,34
+
+! WEDGE NOTCH
+L,15,16
+L,11,17
+L,16,17
+
+L,21,22
+L,23,25
+L,22,23
+
+!///////////////////////////////////////////////
+! ADDITIONAL LINES
+L,5,47
+L,47,41
+L,36,42
+L,42,43
+L,38,45
+L,45,46
+L,34,48
+L,48,44
+
+L,47,42
+L,41,43
+L,42,45
+L,43,46
+L,45,48
+L,46,44
+
+L,11,49
+L,25,50
+L,49,50
+!----------------------------------------------
+! Create Areas
+!////////////////////////////
+! PIN AREAS ARE 1 AND 2
+AL,1,2,3,4
+AL,5,6,7,8
+!////////////////////////////
+! HOLE AREAS ARE 3 AND 4
+AL,21,43,46,22,9,10,11,12
+AL,32,55,58,34,13,14,15,16
+!////////////////////////////
+AL,17,42,43,44,25,41
+AL,18,42,45,21
+AL,22,44,47,26
+AL,19,48,39,46,45
+AL,39,49,50,27,47
+AL,20,51,23,48
+AL,23,52,24,49
+
+AL,28,54,55,56,35,53
+AL,29,57,32,54
+AL,34,59,36,56
+AL,30,60,61,40,57
+AL,40,62,37,58,59
+AL,31,63,33,61
+AL,33,64,38,62
+
+! TOP AND BOTTOM OF WEDGE
+AL,24,66,67,65,50
+AL,70,69,31,60,68
+
+!///////////////////////////////////////////////
+! ADDITIONAL AREAS
+AL,71,79,73,51
+AL,72,80,74,79
+AL,74,82,76,81
+AL,76,84,78,83
+AL,75,83,77,64
+AL,73,81,75,63,86,87,85,52
+
+!//////////////////////////////////////////////
+! CREATE MICROCRACK BOX AHEAD OF CRACK TIP
+!//////////////////////////////////////////////
+X = XLOC
+Y = YLOC
+*DO,I,1,NR
+	*DO,J,1,NC
+		BLC4,X,Y,EL_X,EL_Y
+		X = X+EL_X
+	*ENDDO
+	Y = Y+EL_Y
+	X = XLOC
+*ENDDO
+
+! SELECT AND MERGE ALL VERTICAL LINES
+! ONLY HORIZONTAL CRACKS 
+YPOS = YLOC+0.5*EL_Y
+*DO,I,1,NR
+	LSEL,S,LOC,Y,YPOS
+	KSLL
+	NUMMRG,KP
+	ALLSEL
+	YPOS = YPOS+EL_Y
+*ENDDO
+
+! SELECT AND MERGE NON-CRACK KPS
+YPOS = YLOC+EL_Y
+XPOS = XLOC+EL_X
+ALLSEL
+*DO,I,1,NR
+	! SELECT A ROW OF KPS FROM THE RECTANGLES
+	KSEL,S,LOC,Y,YPOS
+	*IF,YPOS,GT,-0.5*EL_Y,THEN
+	*IF,YPOS,LT,0.5*EL_Y,THEN
+		ALLSEL
+		KSEL,S,LOC,Y,0
+		LSEL,S,LOC,Y,0
+		LSEL,R,LOC,X,0,CLFACT*W
+		KSLL,U
+	*ENDIF
+	*ENDIF
+
+	*DO,J,1,NC
+		! CHECK IF EACH OF THE KPS IS PART OF A CRACK
+		*DO,P,1,NUMCRACKS
+			*IF,YPOS,EQ,MXY(P,2),THEN
+			*IF,XPOS,EQ,MXY(P,1),THEN
+				SELTOL,1E-8
+				KSEL,U,LOC,X,XPOS
+				SELTOL
+			*ENDIF
+			*ENDIF
+			
+			*IF,MXY(P,2),GT,-0.5*EL_Y,THEN
+			*IF,MXY(P,2),LT,0.5*EL_Y,THEN
+			*IF,XPOS,EQ,MXY(P,1),THEN
+				SELTOL,1E-8
+				KSEL,U,LOC,X,XPOS
+				SELTOL
+			*ENDIF
+			*ENDIF
+			*ENDIF
+		*ENDDO
+		! MOVE ON TO NEXT KP
+		XPOS = XPOS+EL_X
+	*ENDDO
+	
+	NUMMRG,KP
+	! INCREMENT Y POSITION
+	YPOS = YPOS+EL_Y
+	! RESET X POSITION
+	XPOS = XLOC+EL_X
+	ALLSEL
+*ENDDO
+
+! SPLIT EDGES OF BOUNDING AREA
+ALLSEL
+ASEL,S,,,26
+ASEL,A,,,19,20
+LSEL,S,LOC,Y,YLOC+0.5*EL_Y
+LSEL,A,LOC,Y,YLOC+(NR-0.5)*EL_Y
+LSEL,A,LOC,X,XLOC+0.5*EL_X
+LSEL,A,LOC,X,XLOC+(NC-0.5)*EL_X
+ASBL,ALL,ALL
+ALLSEL
+
+! MERGE EDGES OF BOX WITH EXISTING AREA
+LSEL,S,LOC,X,XLOC
+LSEL,R,LOC,Y,YLOC,YLOC+NR/2*EL_Y-EL_Y/2
+KSLL
+NUMMRG,KP,,,,LOW 
+ALLSEL
+
+LSEL,S,LOC,X,XLOC
+LSEL,R,LOC,Y,YLOC+NR/2*EL_Y+EL_Y/2,YLOC+NR*EL_Y
+KSLL
+NUMMRG,KP,,,,LOW 
+ALLSEL
+
+LSEL,S,LOC,X,XLOC+NC*EL_X
+KSLL
+NUMMRG,KP,,,,LOW 
+ALLSEL
+
+LSEL,S,LOC,Y,YLOC
+KSLL
+NUMMRG,KP,,,,LOW 
+ALLSEL
+
+LSEL,S,LOC,Y,YLOC+NR*EL_Y
+KSLL
+NUMMRG,KP,,,,LOW 
+ALLSEL
+
+APLOT
+
+!----------------------------------------------
+! Material Properties
+! BONE PROPERTIES
+*IF,BONEPROPS,EQ,1,THEN
+	! ISO BONE
+	MP,EX,1,23100
+	MP,PRXY,1,0.325
+*ELSEIF,BONEPROPS,EQ,2,THEN
+	! ISO PLASTIC BONE
+	MP,EX,1,23100
+	MP,PRXY,1,0.325
+	TB,BISO,1
+	TBDATA,1,132 ! Yield stress (MPa)
+	TBDATA,2,693 ! Tangent modulus (MPa)	
+*ELSEIF,BONEPROPS,EQ,3,THEN
+	! ORTHO BONE (LONG FRAC)
+	MP,EX,1,23100
+	MP,EY,1,10400
+	MP,EZ,1,10400
+	
+	MP,GXY,1,3600	
+	MP,GYZ,1,3600	
+	MP,GXZ,1,3600	
+	
+	MP,PRXY,1,0.29
+	MP,PRYZ,1,0.51
+	MP,PRXZ,1,0.29	
+*ELSEIF,BONEPROPS,EQ,4,THEN
+	! ORTHO BONE (TRANS FRAC)
+	MP,EX,1,10400
+	MP,EY,1,23100
+	MP,EZ,1,10400
+	
+	MP,GXY,1,3600	
+	MP,GYZ,1,3600	
+	MP,GXZ,1,3600
+	
+	MP,PRXY,1,0.29
+	MP,PRYZ,1,0.29
+	MP,PRXZ,1,0.51
+*ELSE
+	MP,EX,1,70000
+	MP,PRXY,1,0.33
+*ENDIF
+
+! ANVIL PROPERTIES
+MP,EX,2,200000
+MP,PRXY,2,0.3
+
+! GENERAL ELEMENTS
+! use a 8 node quad element with plane stress
+ET,1,plane183,0,,0
+
+!----------------------------------------------
+! Meshing 
+EL_B = 4.5*EL_X
+EL_P = 1.5*EL_B
+
+LSEL,S,,,1,8
+LESIZE,ALL,EL_P
+ALLSEL
+
+! Mesh the Pins
+MSHAPE,1
+MSHKEY,2
+MAT,2
+AMESH,1,2
+MSHAPE,0
+MSHKEY,1
+MAT,1
+
+! LINE SIZE BULK GEOMETRY
+NNBL = 84
+ALLSEL
+LSEL,S,,,9,NNBL
+LESIZE,ALL,EL_B
+ALLSEL
+
+! LINE SIZE MICROCRACK BOX
+ALLSEL
+LSEL,U,,,1,NNBL
+LESIZE,ALL,,,1
+ALLSEL
+
+! Mesh Around Pins
+MSHKEY,0
+MSHAPE,1
+ASEL,S,,,3,4
+AMESH,ALL
+ALLSEL
+
+! MESH THE BULK GEOMETRY
+MSHAPE,0
+MSHKEY,2
+ASEL,S,,,5,25
+AMESH,ALL
+ALLSEL
+
+! MESH AROUND THE MICROCRACK BOX
+MSHAPE,1
+MSHKEY,2
+ASEL,S,LOC,X,XLOC,XLOC+(NC+2)*EL_X
+ASEL,R,LOC,Y,0
+AMESH,ALL
+ALLSEL
+
+ASEL,S,LOC,X,0.45*W,0.49*W
+ASEL,R,LOC,Y,-CW,CW
+AMESH,ALL
+ALLSEL
+
+! MESH THE MICROCRACK BOX
+MSHAPE,0
+MSHKEY,2
+ASEL,U,,,5,25
+AMESH,ALL
+ALLSEL
+
+EPLOT
+
+!---------------------------------------------
+! Refine Crack Tip Mesh
+TIPX = CL+EL_X
+TIPY = 0
+RDY = 0.015*W
+RDX = 0.015*W
+
+CONCW = 0.015*W
+*IF,REFITER,GT,0,THEN
+	RDY = CONCW/REFITER
+	RDX = CONCW/REFITER
+	*DO,I,1,REFITER
+		NSEL,S,LOC,Y,-CONCW+RDY*(I-1),CONCW-RDY*(I-1)
+		NSEL,R,LOC,X,TIPX-CONCW+RDX*(I-1),TIPX+CONCW-RDX*(I-1)
+		ESLN
+		EREFINE,ALL,,,1,0,OFF,ON
+		ALLSEL
+	*ENDDO
+*ENDIF
+
+!---------------------------------------------
+! INELEGANT CODE TO GET ELEMENT SIZE
+CTIPELEM = 0
+SELCOUNT = 0
+MIN_EL = 0
+EAREA = 0
+ECOUNT = 0
+NSEL,S,LOC,Y,-RD,RD
+NSEL,R,LOC,X,CL,CL+RD/2
+ESLN
+*GET,SELCOUNT,ELEM,0,COUNT
+*GET,CTIPELEM,ELEM,0,NUM,MAX
+*GET,EAREA,ELEM,CTIPELEM,AREA
+*GET,ECOUNT,ELEM,0,NUM,MAXD
+MIN_EL = SQRT(EAREA)
+ALLSEL
+
+!---------------------------------------------
+! Define contact elements
+MP,MU,4,0 ! friction for contact = 0
+ET,3,TARGE169
+ET,4,CONTA172
+R,4,,,1,1,,1
+KEYOPT,4,2,0
+KEYOPT,4,5,1
+KEYOPT,4,9,1
+KEYOPT,4,10,2
+KEYOPT,4,12,0
+
+MP,MU,6,0 ! friction for contact = 0
+ET,5,TARGE169
+ET,6,CONTA172
+R,6,,,1,1,,-1
+KEYOPT,6,2,0
+KEYOPT,6,5,1
+KEYOPT,6,9,1
+KEYOPT,6,10,2
+KEYOPT,6,12,0
+
+! DEFINE CONTACT PAIR MESH
+! Top hole
+LSEL,S,LINE,,9,12
+NSLL,S,1
+TYPE,4
+MAT,4
+REAL,4
+ESURF
+ALLSEL
+
+! Top Pin
+LSEL,S,LINE,,1,4
+NSLL,S,1
+TYPE,3
+ESURF
+ALLSEL
+
+! Bottom Hole
+LSEL,S,LINE,,13,16
+NSLL,S,1
+TYPE,6
+MAT,6
+REAL,6
+ESURF
+ALLSEL
+
+! Bottom Pin
+LSEL,S,LINE,,5,8
+NSLL,S,1
+TYPE,5
+ESURF
+ALLSEL
+
+!----------------------------------------------
+! Define Loads and Boundary Conditions
+/SOLU
+ASEL,S,,,2
+NSLA,S,1
+D,ALL,UY,0
+D,ALL,UX,0
+ALLSEL
+
+ASEL,S,,,1
+NSLA,S,1
+D,ALL,UX,0
+ALLSEL
+
+RNODE = -1
+NSEL,S,LOC,X,0
+NSEL,R,LOC,Y,0.275*W
+D,ALL,UY,DEL
+*GET,RNODE,NODE,0,NUM,MAX
+ALLSEL
+
+!----------------------------------------------
+! Set up J-integral calc 
+! Define Crack Tip Coords
+! Crack tip NODE
+SELTOL,1E-8
+CTNODE = -1
+NSEL,S,LOC,X,CL+EL_X
+NSEL,R,LOC,Y,0
+*GET,CTNODE,NODE,0,NUM,MAX
+ALLSEL
+! Crack Ext NODE
+CENODE = -1
+NSEL,S,LOC,X,CL+2*EL_X
+NSEL,R,LOC,Y,0
+*GET,CENODE,NODE,0,NUM,MAX
+ALLSEL
+! Crack Normal NODE 
+CNNODE = -1
+NSEL,S,LOC,X,CL+EL_X
+NSEL,R,LOC,Y,EL_Y
+*GET,CNNODE,NODE,0,NUM,MAX
+ALLSEL
+SELTOL
+
+CS,11,0,CTNODE,CENODE,CNNODE,1,1
+CSYS,11
+
+NSEL,S,,,CTNODE
+CM,CRACK_TIP_NODE_CM,NODE
+ALLSEL
+
+CINT,NEW,1
+CINT,CTNC,CRACK_TIP_NODE_CM
+CINT,NORM,11,2
+CINT,SYMM,OFF
+CINT,NCON,6
+OUTRES,CINT,10 
+
+!----------------------------------------------
+! Solution Conditions
+! perform static analysis
+ANTYPE,0
+! use ramped loading
+KBC,0
+! Use automatic time stepping
+AUTOTS,ON
+! p1: number of substeps, p2: max substeps
+! p3: min substeps
+! ANSYS VM CT Jpl: NSUBST,10,1000,10
+NSUBST,20,200,10
+! non-linear geometry
+*IF,BONEPROPS,EQ,2,THEN
+	NLGEOM,ON
+*ELSE
+	NLGEOM,OFF
+*ENDIF
+! determines what is written to DB file
+OUTRES,ALL,ALL
+! sets time at the end of the load step
+TIME,1.0
+
+SOLVE
+
+!----------------------------------------------
+! Post Processing	
+/POST1
+J=0
+PRCINT,1,CTN_CM,JINT ! PRINT K VALUES
+*GET,J,CINT,1,CTIP,NODE(0,0,0),,5,,JINT ! GET J VALUE FOR CRACK TIP NODE	
+
+! TODO UPDATE TO NODAL CALCS
+ALLSEL
+CSYS,0
+FYR = 0
+*GET,FYR,NODE,RNODE,RF,FY
+ALLSEL
+
+!---------------------------------------------
+! Store data to file for current crack length inc, J, del, F
+! THIS CODE MUST BE ALIGNED LEFT
+FILENUM = CHRVAL(ITER)
+FILEMAT = CHRVAL(BONEPROPS)
+FILENUMC = CHRVAL(NUMCRACKS) 
+
+*CFOPEN,JMC_%FILENUM%_%FILEMAT%_%S_FI%_%FILENUMC%,csv
+*VWRITE,W,CLFACT,BONEPROPS,FI,DEL,FYR,J
+(F7.3,',',F7.3,',',F7.3,',',F7.3,',',F10.5,',',F10.5,',',F10.5)
+*CFCLOS	
+
+PLDISP,0
+PLNSOL,S,EQV,0,1.0
+

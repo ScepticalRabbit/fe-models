@@ -1,0 +1,286 @@
+!////////////////////////////////////////////
+! FE MODEL 2D
+! Authors: Lloyd Fletcher
+! Date: 30/3/2020
+! Specimen Type: Dog Bone rig
+! Units: N, m, Pa
+!////////////////////////////////////////////
+
+FINISH
+/CLEAR,NOSTART
+/CWD,'D:\UofS_ANSYSWorkingDirectory\QSModel_DB_Bone\Data_BoneL_FG\'
+Jobname = 'QS_MiniDB_BoneL'
+/TITLE,Jobname 
+/FILNAME,Jobname 
+*AFUN,DEG
+
+!start preprocesser: enters the model creation preprocesser
+/PREP7
+iteration = 0
+solveModel = 1
+outputFiles = 1
+FILENUM = CHRVAL(iteration)
+
+! Specimen Geometry
+specLx = 12e-3
+specLy = 20e-3
+specLz = 2e-3
+
+specGaugeW = 4e-3
+specShouldR = 5e-3
+specShouldL = 2.5e-3
+
+! Used to add an extra notch, turned off
+specAddWaist = 0
+specWaistRad = 10e-3
+specWaistAddDeg = 2
+
+! Specimen Material Properties
+specE11 = 20e9
+specE22 = 10e9
+specNu12 = 0.3
+specG12 = 5e9
+!specE11 = 3.6e9
+!specNu12 = 0.33
+!specE22 = specE11
+!specG12 = specE11/(2*(1+specNu12))
+! NOTE: angle = 0 is the transverse case! Because E11 = Ex
+specAngle = 90
+specElemSize = 0.25e-3
+specTol = specElemSize/8
+
+! Loading options
+delY = 0.1e-3
+numSteps = 5
+maxSteps = 500
+
+/PNUM,LINE,1
+/PNUM,AREA,1
+
+!----------------------------------------------
+! SPECIMEN GEOMETRY
+BLC4,0,0,specLx,specLy 
+
+! Circular areas to subtract to create shoulders
+CLocX = specLx/2-specGaugeW/2-specShouldR 
+CLocY1 = specShouldL+specShouldR
+CYL4,CLocX,CLocY1,specShouldR
+CLocY2 = specLy-specShouldL-specShouldR
+CYL4,CLocX,CLocY2,specShouldR
+
+BLx = 2*specShouldR
+BLy = CLocY2 - CLocY1
+BLocX = specLx/2-specGaugeW/2-BLx 
+BLocY = CLocY1
+BLC4,BLocX,BLocY,BLx,BLy
+
+CLocX = specLx/2+specGaugeW/2+specShouldR 
+CLocY1 = specShouldL+specShouldR
+CYL4,CLocX,CLocY1,specShouldR
+CLocY2 = specLy-specShouldL-specShouldR
+CYL4,CLocX,CLocY2,specShouldR
+
+BLx = 2*specShouldR
+BLy = CLocY2 - CLocY1
+BLocX = specLx/2+specGaugeW/2 
+BLocY = CLocY1
+BLC4,BLocX,BLocY,BLx,BLy
+
+ASBA,1,ALL
+ALLSEL 
+!APLOT
+
+! Get the number of the remaining area
+ASEL,S,AREA,,ALL
+*GET,selDBArea,AREA,0,NUM,MAXD
+ALLSEL
+
+! Get the gauge length of the specimen
+LSEL,S,LOC,Y,specLy/2
+LSEL,R,LOC,X,specLx/2+specGaugeW/2
+*GET,selLineNum,LINE,0,NUM,MAX
+*GET,specGaugeL,LINE,selLineNum,LENG
+ALLSEL
+
+*IF,specAddWaist,EQ,1,THEN
+	waistLocY = specLy/2
+	waistOffsetX = SQRT(specWaistRad**2-(specGaugeL/2)**2)
+	waistLocX1 = specLx/2+specGaugeW/2+waistOffsetX
+	waistLocX2 = specLx/2-specGaugeW/2-waistOffsetX	
+	
+	! Use trig to work out the arc angle for the waistLocX1
+	Opp = specGaugeL/2
+	Hyp = specWaistRad
+	waistAng = ASIN(Opp/Hyp)+specWaistAddDeg
+
+	CYL4,waistLocX1,waistLocY,specWaistRad,-waistAng+180,,waistAng+180
+	CYL4,waistLocX2,waistLocY,specWaistRad,-waistAng,,waistAng
+	ASBA,selDBArea,ALL
+	
+	ASEL,S,AREA,,ALL
+	*GET,selDBArea,AREA,0,NUM,MAX
+	ALLSEL
+*ENDIF
+
+
+!---------------------------------
+! MATERIAL PROPERTIES
+MP,EX,1,specE11
+MP,EY,1,specE22
+MP,PRXY,1,specNu12
+MP,GXY,1,specG12
+
+!------------------------------
+! ELEMENT DEFINITION
+ET,1,plane183,1,,3,
+R,1,specLz,
+
+! Create a local coordinate system aligned to the material axis
+LOCAL,11,CART,0,0,0,specAngle
+
+!-------------------------------
+! AREA MESHING
+ALLSEL
+ASEL,S,AREA,,selDBArea
+
+! Assign off-axis co-ords to elements
+ESYS,11
+ESIZE,specElemSize
+MSHKEY,0
+MAT,1
+TYPE,1
+REAL,1
+AMESH,ALL
+ALLSEL
+
+!-------------------------------
+! DEFINE LOADS AND BCS
+/SOLU
+! Apply boundary conditions in global co-ords
+CSYS,0
+
+! Fix bottom Edge
+ALLSEL
+NSEL,R,LOC,Y,-specTol,specTol
+D,ALL,ALL,0
+ALLSEL
+
+! Pull on top edge
+ALLSEL
+NSEL,R,LOC,Y,specLy-specTol,specLy+specTol
+D,ALL,UX,0
+D,ALL,UY,delY
+ALLSEL
+
+!----------------------------------------------
+! SOLUTION OPTIONS AND SOLVE
+ANTYPE,0
+NLGEOM,0
+KBC,0
+AUTOTS,ON
+NSUBST,numSteps,maxSteps,numSteps
+OUTRES,ALL,ALL
+
+*IF,solveModel,EQ,1,THEN
+	SOLVE
+*ENDIF
+FINISH
+
+!----------------------------------------------
+! Post Processing	
+/POST1
+RSYS,0 ! Report results in the global cartesian system 
+ALLSEL
+ESEL,S,TYPE,,1
+NSLE,S
+!PLNSOL, S,1, 0,1.0 
+
+!-----------------------------------------------------
+! Output Simulation Parameters
+*GET,NCOUNT,NODE,0,COUNT
+*CFOPEN,SimParams_%FILENUM%,txt
+*VWRITE,'fNum    ','numSteps'
+(A8,' |',A8,' |')
+*VWRITE,iteration,numSteps
+(E9.3,',',E9.3)
+*VWRITE,'specESze','delY    '
+(A8,' |',A8,' |')
+*VWRITE,specElemSize,delY
+(E9.3,',',E9.3)
+*VWRITE,'specE11 ','specE22 ','specNu12','specG12','specAng '
+(A8,' |',A8,' |',A8,' |',A8,' |',A8,' |')
+*VWRITE,specE11,specE22,specNu12,specG12,specAngle
+(E9.3,',',E9.3,',',E9.3,',',E9.3,',',E9.3)
+*CFCLOS
+!-----------------------------------------------------
+
+*IF,outputFiles,EQ,1,THEN
+	/GRAPHICS,FULL
+	SET,FIRST	! Read in initial result set
+	RSYS,0 ! Report results in the global cartesian system 
+
+	! Setup formatting for output files
+	!/HEADER,OFF,OFF,OFF,OFF,OFF,OFF
+	/HEADER,ON,ON,ON,ON,ON,OFF
+	/PAGE,2*NCOUNT,,2*NCOUNT
+	
+	! Select nodes and elements from the specimen only
+	ESEL,S,TYPE,,1
+	NSLE,S
+	!EPLOT
+	
+	! Get the node locations and save to file
+	/OUTPUT,Node_Locs_%FILENUM%,txt
+	NLIST,ALL, , ,XYZ,NODE,NODE,NODE
+	/OUTPUT
+
+	! Get the element table
+	!/OUTPUT,Elem_Table_%FILENUM%,txt
+	!ELIST,ALL
+	!/OUTPUT
+
+	! Loop through each time step and save to file
+	SET,FIRST 	! Read in initial result set
+	*DO,S,1,numSteps
+		stepStr = CHRVAL(S)
+		
+		ALLSEL
+		NSEL,S,LOC,Y,specLy-specTol,specLy+specTol
+		/OUTPUT,Node_Force_%FILENUM%_%stepStr%,txt,,
+		NFORCE,ALL  
+		/OUTPUT
+		ALLSEL
+		
+		ALLSEL
+		! Select nodes and elements from the specimen only
+		ESEL,S,TYPE,,1
+		NSLE,S
+		! Get nodal displacement
+		/OUTPUT,Node_Disp_%FILENUM%_%stepStr%,txt,,
+		PRNSOL,U,COMP   
+		/OUTPUT
+		
+		! Get strain at the nodes
+		/OUTPUT,Node_Strain_%FILENUM%_%stepStr%,txt,,
+		PRNSOL,EPTO,COMP   
+		/OUTPUT	
+		
+		! Get stress at the nodes
+		!/OUTPUT,Node_Stress_%FILENUM%_%stepStr%,txt,,
+		!PRNSOL,S,COMP   
+		!/OUTPUT
+		
+		ALLSEL	
+		SET,NEXT
+	*ENDDO
+*ENDIF
+
+!SET,LAST
+!gTol = 2e-3
+!NSEL,R,LOC,Y,specLy/2+gTol,specLy/2-gTol
+!ESLN,S
+!PLNSOL, S,1, 0,1.0 
+
+SET,LAST
+PLNSOL, S,1, 0,1.0  
+

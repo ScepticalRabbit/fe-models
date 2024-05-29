@@ -1,0 +1,192 @@
+!/////////////////////////////////////////////////////
+! FE MODEL 2D
+! Author: Lloyd Fletcher
+! Date: 12th April 2020
+! Specimen Type: Shear, Orthotropic
+! Units: N, mm, MPa
+!/////////////////////////////////////////////////////
+
+FINISH
+/CLEAR,NOSTART
+/CWD,'D:\UofS_ANSYSWorkingDirectory\EXAMPLE_QS_2DShear\Data\'
+/PREP7
+
+/PNUM,KP,1
+/PNUM,LINE,1
+/PNUM,AREA,1
+*AFUN,DEG
+
+!----------------------------------------------
+! Define Variables
+iteration = 0
+solveModel = 0
+
+! Data output flags, only works if solveModel=1
+outputFiles = 0
+outputNodeForce = 0
+outputStressStrain = 0
+
+! Specimen Geometry
+specLx = 30e-3
+specLy = 15e-3
+specLz = 2e-3
+specElemSize = 0.1e-3
+
+! Specimen Properties
+specE11 = 20e9
+specE22 = 10e9
+specNu12 = 0.3
+specNu21 = specE22*(specNu12/specE11)
+! Nu12 = 0.3 then Nu21 = 0.15 for bone
+specG12 = 5e9
+specAngle = 0
+
+! Resultant applied force and number of steps
+numSteps = 25 
+resForce = 700
+
+! Tolerance for selecting nodes
+tol = specElemSize/8 
+! Character number for file saving
+FILENUM = CHRVAL(iteration)
+
+!----------------------------------------------
+! Define Geometry
+BLC4,0,0,specLx,specLy
+
+!----------------------------------------------
+! Define Material Properties 
+MP,EX,1,specE11
+MP,EY,1,specE22
+MP,PRXY,1,specNu12
+MP,GXY,1,specG12
+
+!----------------------------------------------
+! Define Elements
+! use a 8 node quad element with plane stress
+ET,1,plane183,0,,3,
+R,1,specLz,
+
+! Create a local coordinate system aligned to the material axis
+LOCAL,11,CART,0,0,0,specAngle
+! Assign off-axis co-ords to elements
+ESYS,11
+
+!----------------------------------------------
+! Meshing 
+ESIZE,specElemSize
+MAT,1		! Material 1
+TYPE,1		! Element Type 1
+MSHAPE,0	! Use quads
+MSHKEY,2	! Use mapped mesh if possible
+AMESH,ALL
+EPLOT
+
+!----------------------------------------------
+! Define Loads and Boundary Conditions
+/SOLU
+! Apply boundary conditions in global co-ords
+CSYS,0
+
+! Constrain the bottom edge
+NSEL,S,LOC,X,-tol,tol
+D,ALL,UX,0
+D,ALL,UY,0
+ALLSEL
+
+! Load the top edge
+NSEL,S,LOC,X,specLx-tol,specLx+tol
+*Get,numEdgeNodes,node,0,count
+nodeForce = resForce/numEdgeNodes
+D,ALL,UX,0
+F,ALL,FY,nodeForce
+ALLSEL
+
+! determines what is written to DB file
+NLGEOM,0
+AUTOTS,ON
+NSUBST,numSteps,500,numSteps
+OUTRES,ALL,ALL
+*IF,solveModel,EQ,1,THEN
+	SOLVE
+*ENDIF
+
+!----------------------------------------------
+! Post Processing	
+/POST1
+/DSCALE,1,1.0 
+
+!-----------------------------------------------------
+! Output Simulation Parameters
+*GET,NCOUNT,NODE,0,COUNT
+*CFOPEN,SimParams_%FILENUM%,txt
+*VWRITE,'fNum    ','numSteps'
+(A8,' |',A8,' |')
+*VWRITE,iteration,numSteps
+(E9.3,',',E9.3)
+*VWRITE,'specLx  ','specLy  ','specLz  ','specESze','resF    '
+(A8,' |',A8,' |',A8,' |',A8,' |',A8,' |')
+*VWRITE,specLx,specLy,specLz,specElemSize,resForce
+(E9.3,',',E9.3,',',E9.3,',',E9.3,',',E9.3)
+*VWRITE,'specE11 ','specE22 ','specNu12','specG12','specAng '
+(A8,' |',A8,' |',A8,' |',A8,' |',A8,' |')
+*VWRITE,specE11,specE22,specNu12,specG12,specAngle
+(E9.3,',',E9.3,',',E9.3,',',E9.3,',',E9.3)
+*CFCLOS
+!-----------------------------------------------------
+
+*IF,outputFiles,EQ,1,THEN
+	/GRAPHICS,FULL
+	SET,FIRST	! Read in initial result set
+	RSYS,0 ! Report results in the global cartesian system 
+
+	! Setup formatting for output files
+	!/HEADER,OFF,OFF,OFF,OFF,OFF,OFF
+	/HEADER,ON,ON,ON,ON,ON,OFF
+	ALLSEL
+	/PAGE,2*NCOUNT,,2*NCOUNT
+
+	! Get the node locations and save to file
+	/OUTPUT,Node_Locs_%FILENUM%,txt
+	NLIST,ALL, , ,XYZ,NODE,NODE,NODE
+	/OUTPUT
+
+	! Get the element table
+	/OUTPUT,Elem_Table_%FILENUM%,txt
+	ELIST,ALL
+	/OUTPUT
+
+	! Loop through each time step and save to file
+	SET,FIRST 	! Read in initial result set
+	*DO,S,1,numSteps
+		stepStr = CHRVAL(S)
+		! Get nodal displacement
+		/OUTPUT,Node_Disp_%FILENUM%_%stepStr%,txt,,
+		PRNSOL,U,COMP   
+		/OUTPUT
+		
+		*IF,outputNodeForce,EQ,1,THEN
+			ALLSEL
+			NSEL,S,LOC,X,specLx-specTol,specLx+specTol
+			/OUTPUT,Node_Force_%FILENUM%_%stepStr%,txt,,
+			NFORCE,ALL  
+			/OUTPUT
+			ALLSEL
+		*ENDIF
+	
+		*IF,outputStressStrain,EQ,1,THEN
+			! Get strain at the nodes
+			/OUTPUT,Node_Strain_%FILENUM%_%stepStr%,txt,,
+			PRNSOL,EPTO,COMP   
+			/OUTPUT	
+			! Get stress at the nodes
+			/OUTPUT,Node_Stress_%FILENUM%_%stepStr%,txt,,
+			PRNSOL,S,COMP   
+			/OUTPUT
+		*ENDIF
+		
+		SET,NEXT
+	*ENDDO
+*ENDIF
+
+

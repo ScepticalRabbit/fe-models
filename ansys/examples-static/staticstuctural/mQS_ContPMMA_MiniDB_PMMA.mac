@@ -1,0 +1,463 @@
+!////////////////////////////////////////////
+! FE MODEL 2D
+! Authors: Lloyd Fletcher
+! Date: 26/3/2020
+! Specimen Type: Dog Bone rig
+! Units: N, m, Pa
+!////////////////////////////////////////////
+
+FINISH
+/CLEAR,NOSTART
+/CWD,'C:\Users\Lloyd\Documents\UofS_ANSYSWorkingDirectory\QSModel_DB_Bone\Data_Cont\'
+Jobname = 'QS_MiniDB_PMMA'
+/TITLE,Jobname 
+/FILNAME,Jobname 
+*AFUN,DEG
+
+!start preprocesser: enters the model creation preprocesser
+/PREP7
+iteration = 0
+solveModel = 1
+outputFiles = 0
+FILENUM = CHRVAL(iteration)
+
+! Specimen Geometry
+specLx = 8e-3
+specLy = 20e-3
+specLz = 1e-3
+
+specGaugeW = 3e-3
+specShouldR = 6e-3
+specShouldL = 1.5e-3
+
+specAddWaist = 0
+specWaistRad = 10e-3
+specWaistAddDeg = 2
+
+! Specimen Material Properties
+!specE11 = 23.1e9
+!specE22 = 10.4e9
+!specNu12 = 0.3
+!specG12 = 3.6e9
+specE11 = 3.6e9
+specNu12 = 0.33
+specE22 = specE11
+specG12 = specE11/(2*(1+specNu12))
+specAngle = 0
+specElemSize = 0.1e-3
+specTol = specElemSize/8
+
+! Loading Pin Properties
+pinE = 190e9
+pinNu = 0.29
+pinElemSize = specShouldR/10
+pinThick = 4e-3
+pinTol = pinElemSize/8 
+
+! Loading options
+delY = 0.5e-3
+numSteps = 5
+maxSteps = 500
+
+/PNUM,LINE,1
+/PNUM,AREA,1
+
+!----------------------------------------------
+! SPECIMEN GEOMETRY
+BLC4,0,0,specLx,specLy 
+
+! Circular areas to subtract to create shoulders
+CLocX = specLx/2-specGaugeW/2-specShouldR 
+CLocY1 = specShouldL+specShouldR
+CYL4,CLocX,CLocY1,specShouldR
+CLocY2 = specLy-specShouldL-specShouldR
+CYL4,CLocX,CLocY2,specShouldR
+
+BLx = 2*specShouldR
+BLy = CLocY2 - CLocY1
+BLocX = specLx/2-specGaugeW/2-BLx 
+BLocY = CLocY1
+BLC4,BLocX,BLocY,BLx,BLy
+
+CLocX = specLx/2+specGaugeW/2+specShouldR 
+CLocY1 = specShouldL+specShouldR
+CYL4,CLocX,CLocY1,specShouldR
+CLocY2 = specLy-specShouldL-specShouldR
+CYL4,CLocX,CLocY2,specShouldR
+
+BLx = 2*specShouldR
+BLy = CLocY2 - CLocY1
+BLocX = specLx/2+specGaugeW/2 
+BLocY = CLocY1
+BLC4,BLocX,BLocY,BLx,BLy
+
+ASBA,1,ALL
+ALLSEL 
+!APLOT
+
+! Get the number of the remaining area
+ASEL,S,AREA,,ALL
+*GET,selDBArea,AREA,0,NUM,MAXD
+ALLSEL
+
+! Get the gauge length of the specimen
+LSEL,S,LOC,Y,specLy/2
+LSEL,R,LOC,X,specLx/2+specGaugeW/2
+*GET,selLineNum,LINE,0,NUM,MAX
+*GET,specGaugeL,LINE,selLineNum,LENG
+ALLSEL
+
+! Add the waist to the specimen if needed
+*IF,specAddWaist,EQ,1,THEN
+	waistLocY = specLy/2
+	waistOffsetX = SQRT(specWaistRad**2-(specGaugeL/2)**2)
+	waistLocX1 = specLx/2+specGaugeW/2+waistOffsetX
+	waistLocX2 = specLx/2-specGaugeW/2-waistOffsetX	
+	
+	! Use trig to work out the arc angle for the waistLocX1
+	Opp = specGaugeL/2
+	Hyp = specWaistRad
+	waistAng = ASIN(Opp/Hyp)+specWaistAddDeg
+
+	CYL4,waistLocX1,waistLocY,specWaistRad,-waistAng+180,,waistAng+180
+	CYL4,waistLocX2,waistLocY,specWaistRad,-waistAng,,waistAng
+	ASBA,selDBArea,ALL
+	
+	ASEL,S,AREA,,ALL
+	*GET,selDBArea,AREA,0,NUM,MAX
+	ALLSEL
+*ENDIF
+
+! Get the line numbers where the specimen contacts the pins
+LTol = specShouldR
+LLocY = specLy-specShouldL-specShouldR
+LLocX = specLx/2-specGaugeW/2-specShouldR
+LSEL,S,LOC,Y,LLocY+LTol,LLocY-LTol
+LSEL,R,LOC,X,LLocX+LTol,LLocX-LTol
+*GET,spec1Line,LINE,0,NUM,MAX
+ALLSEL
+
+LLocY = specShouldL+specShouldR
+LLocX = specLx/2-specGaugeW/2-specShouldR
+LSEL,S,LOC,Y,LLocY+LTol,LLocY-LTol
+LSEL,R,LOC,X,LLocX+LTol,LLocX-LTol
+*GET,spec2Line,LINE,0,NUM,MAX
+ALLSEL
+
+LLocY = specLy-specShouldL-specShouldR
+LLocX = specLx/2+specGaugeW/2+specShouldR
+LSEL,S,LOC,Y,LLocY+LTol,LLocY-LTol
+LSEL,R,LOC,X,LLocX+LTol,LLocX-LTol
+*GET,spec3Line,LINE,0,NUM,MAX
+ALLSEL
+
+LLocY = specShouldL+specShouldR
+LLocX = specLx/2+specGaugeW/2+specShouldR
+LSEL,S,LOC,Y,LLocY+LTol,LLocY-LTol
+LSEL,R,LOC,X,LLocX+LTol,LLocX-LTol
+*GET,spec4Line,LINE,0,NUM,MAX
+ALLSEL
+
+!----------------------------------------------
+! LOADING PIN GEOMETRY
+aTol = specShouldR 
+! Create the pin area
+CLocX = specLx/2-specGaugeW/2-specShouldR 
+CLocY = specLy-specShouldL-specShouldR
+CYL4,CLocX,CLocY,specShouldR,0,,90
+! Select the pin area and store the number
+ASEL,S,LOC,X,CLocX+aTol,CLocX-aTol
+ASEL,R,LOC,Y,CLocY+aTol,CLoxY-aTol
+!*GET,pin1Area,AREA,0,NUM,MAX
+LSLA,S
+LSEL,R,RADIUS,,specShouldR
+*GET,pin1Line,LINE,0,NUM,MAX
+ALLSEL
+
+! Create the pin area
+CLocX = specLx/2-specGaugeW/2-specShouldR 
+CLocY = specShouldL+specShouldR
+CYL4,CLocX,CLocY,specShouldR,0,,-90
+! Select the pin area and store the number
+ASEL,S,LOC,X,CLocX+aTol,CLocX-aTol
+ASEL,R,LOC,Y,CLocY+aTol,CLoxY-aTol
+!*GET,pin2Area,AREA,0,NUM,MAX
+LSLA,S
+LSEL,R,RADIUS,,specShouldR
+*GET,pin2Line,LINE,0,NUM,MAX
+ALLSEL
+
+! Create the pin area
+CLocX = specLx/2+specGaugeW/2+specShouldR 
+CLocY = specLy-specShouldL-specShouldR
+CYL4,CLocX,CLocY,specShouldR,90,,180
+! Select the pin area and store the number
+ASEL,S,LOC,X,CLocX+aTol,CLocX-aTol
+ASEL,R,LOC,Y,CLocY+aTol,CLoxY-aTol
+!*GET,pin2Area,AREA,0,NUM,MAX
+LSLA,S
+LSEL,R,RADIUS,,specShouldR
+*GET,pin3Line,LINE,0,NUM,MAX
+ALLSEL
+
+! Create the pin area
+CLocX = specLx/2+specGaugeW/2+specShouldR 
+CLocY = specShouldL+specShouldR
+CYL4,CLocX,CLocY,specShouldR,180,,270
+! Select the pin area and store the number
+ASEL,S,LOC,X,CLocX+aTol,CLocX-aTol
+ASEL,R,LOC,Y,CLocY+aTol,CLoxY-aTol
+!*GET,pin2Area,AREA,0,NUM,MAX
+LSLA,S
+LSEL,R,RADIUS,,specShouldR
+*GET,pin4Line,LINE,0,NUM,MAX
+ALLSEL
+
+!---------------------------------
+! MATERIAL PROPERTIES
+MP,EX,1,specE11
+MP,EY,1,specE22
+MP,PRXY,1,specNu12
+MP,GXY,1,specG12
+
+MP,EX,2,pinE
+MP,PRXY,2,pinNu
+
+!------------------------------
+! ELEMENT DEFINITION
+ET,1,plane183,1,,3,
+R,1,specLz,
+
+ET,20,plane183,1,,3,
+R,20,pinThick,
+
+!-------------------------------
+! AREA MESHING
+ALLSEL
+ASEL,U,AREA,,selDBArea
+
+ESIZE,pinElemSize
+MSHKEY,1
+MAT,2
+TYPE,20
+REAL,20
+AMESH,ALL
+ALLSEL
+
+ALLSEL
+ASEL,S,AREA,,selDBArea
+
+ESIZE,specElemSize
+MSHKEY,0
+MAT,1
+TYPE,1
+REAL,1
+AMESH,ALL
+ALLSEL
+
+!------------------------------------
+! DEFINE CONTACT ELEMENTS
+MP,MU,4,0 ! friction for contact = 0
+ET,3,TARGE169
+ET,4,CONTA172
+R,4,,,1,1,,1
+KEYOPT,4,2,0
+KEYOPT,4,5,1
+KEYOPT,4,9,1
+KEYOPT,4,10,2
+KEYOPT,4,12,0
+
+MP,MU,6,0 ! friction for contact = 0
+ET,5,TARGE169
+ET,6,CONTA172
+R,6,,,1,1,,-1
+KEYOPT,6,2,0
+KEYOPT,6,5,1
+KEYOPT,6,9,1
+KEYOPT,6,10,2
+KEYOPT,6,12,0
+
+MP,MU,8,0 ! friction for contact = 0
+ET,7,TARGE169
+ET,8,CONTA172
+R,8,,,1,1,,1
+KEYOPT,8,2,0
+KEYOPT,8,5,1
+KEYOPT,8,9,1
+KEYOPT,8,10,2
+KEYOPT,8,12,0
+
+MP,MU,10,0 ! friction for contact = 0
+ET,9,TARGE169
+ET,10,CONTA172
+R,10,,,1,1,,-1
+KEYOPT,10,2,0
+KEYOPT,10,5,1
+KEYOPT,10,9,1
+KEYOPT,10,10,2
+KEYOPT,10,12,0
+
+! CNCHECK
+!-------------------------------
+! DEFINE CONTACT PAIR MESH
+
+!///////////////////////////////
+! CONTACT PAIR 1
+! Top Left Specimen
+ALLSEL
+LSEL,S,LINE,,spec1Line
+NSLL
+TYPE,4
+MAT,4
+REAL,4
+ESURF
+ALLSEL
+
+! Top Left Pin
+LSEL,S,LINE,,pin1Line
+NSLL
+TYPE,3
+ESURF
+ALLSEL
+
+!///////////////////////////////
+! CONTACT PAIR 2
+! Bottom Left Specimen
+LSEL,S,LINE,,spec2Line
+NSLL
+TYPE,6
+MAT,6
+REAL,6
+ESURF
+ALLSEL
+
+! Bottom Left Pin
+LSEL,S,LINE,,pin2Line
+NSLL
+TYPE,5
+ESURF
+ALLSEL
+
+!///////////////////////////////
+! CONTACT PAIR 3
+! Top Right Specimen
+LSEL,S,LINE,,spec3Line
+NSLL
+TYPE,8
+MAT,8
+REAL,8
+ESURF
+ALLSEL
+
+! Top Right Pin
+LSEL,S,LINE,,pin3Line
+NSLL
+TYPE,7
+ESURF
+ALLSEL
+
+!///////////////////////////////
+! CONTACT PAIR 4
+! Bottom Right Specimen
+LSEL,S,LINE,,spec4Line
+NSLL
+TYPE,10
+MAT,10
+REAL,10
+ESURF
+ALLSEL
+
+! Bottom Right Pin
+LSEL,S,LINE,,pin4Line
+NSLL
+TYPE,9
+ESURF
+ALLSEL
+!///////////////////////////////
+
+!-------------------------------
+! DEFINE LOADS AND BCS
+/SOLU
+pinTol = pinElemSize
+
+! Fix bottom left pin
+ALLSEL
+ESEL,S,TYPE,,20
+NSLE,S
+yLoc = specShouldL+specShouldR
+NSEL,R,LOC,Y,yLoc-pinTol,yLoc+pinTol
+xLoc = specLx/2-specGaugeW/2-specShouldR
+NSEL,R,LOC,X,xLoc-pinTol,xLoc+pinTol
+D,ALL,ALL,0
+ALLSEL
+
+! Fix bottom right pin
+ALLSEL
+ESEL,S,TYPE,,20
+NSLE,S
+yLoc = specShouldL+specShouldR
+NSEL,R,LOC,Y,yLoc-pinTol,yLoc+pinTol
+xLoc = specLx/2+specGaugeW/2+specShouldR
+NSEL,R,LOC,X,xLoc-pinTol,xLoc+pinTol
+D,ALL,ALL,0
+ALLSEL
+
+! Displace top left pin
+ALLSEL
+ESEL,S,TYPE,,20
+NSLE,S
+yLoc = specLy-specShouldL-specShouldR
+NSEL,R,LOC,Y,yLoc-pinTol,yLoc+pinTol
+xLoc = specLx/2-specGaugeW/2-specShouldR
+NSEL,R,LOC,X,xLoc-pinTol,xLoc+pinTol
+D,ALL,UX,0
+D,ALL,UY,delY
+ALLSEL
+
+! Displace bottom left pin
+ALLSEL
+ESEL,S,TYPE,,20
+NSLE,S
+yLoc = specLy-specShouldL-specShouldR
+NSEL,R,LOC,Y,yLoc-pinTol,yLoc+pinTol
+xLoc = specLx/2+specGaugeW/2+specShouldR
+NSEL,R,LOC,X,xLoc-pinTol,xLoc+pinTol
+D,ALL,UX,0
+D,ALL,UY,delY
+ALLSEL
+
+!----------------------------------------------
+! SOLUTION OPTIONS AND SOLVE
+ANTYPE,0
+NLGEOM,0
+KBC,0
+AUTOTS,ON
+NSUBST,numSteps,maxSteps,numSteps
+OUTRES,ALL,ALL
+
+*IF,solveModel,EQ,1,THEN
+	SOLVE
+*ENDIF
+FINISH
+
+!----------------------------------------------
+! Post Processing	
+/POST1
+ALLSEL
+ESEL,S,TYPE,,1
+NSLE,S
+PLNSOL, S,1, 0,1.0  
+
+!gTol = 2e-3
+!NSEL,R,LOC,Y,specLy/2+gTol,specLy/2-gTol
+!ESLN,S
+!PLNSOL, S,1, 0,1.0 
+
+
+
+
+
+
+
+
+

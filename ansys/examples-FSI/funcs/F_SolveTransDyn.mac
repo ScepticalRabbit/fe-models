@@ -1,0 +1,54 @@
+/SOLU
+/CWD,%PATH_A%%PATH_B%%PATH_C%%PATH_D%%PATH_E%%PATH_DATA%
+PARSAV,SCALAR,SimParams,txt
+
+ANTYPE,TRANSIENT
+!ACEL,0.0,9.81,0.0
+TRNOPT,FULL,,,,,HHT ! Can also use HHT integration
+! The amplitude decay factor is recommended to be set as  (Hughes([166]))
+TINTP,0.05 ! Sets transient integration parameter 'GAMMA' which gives damping
+    
+ALPHAD,dampAlpha
+BETAD,dampBeta
+
+DELTIM,timeStep
+AUTOTS,OFF
+KBC,0 ! BCS 0=linear , 1=step
+
+! Database output options - reduce file size
+OUTRES,ERASE
+OUTRES,NSOL,outRelativeFreq
+OUTRES,STRS,outRelativeFreq
+OUTRES,EPEL,outRelativeFreq
+    
+!TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+! 1) STATIC SOLVE - INIT CONDS 
+TIMINT,OFF
+
+TIME,staticSolveStep*timeStep
+! Apply pipe pressure from table file
+ALLSEL
+ESEL,S,TYPE,,1
+NSLE,S
+SF,ALL,PRES,%tabPress%
+ALLSEL	
+SOLVE
+
+!TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+! 2) TIME INTEGRATED SOLVE
+TIMINT,ON
+
+TIME,simTime
+! Apply pipe pressure from table file
+ALLSEL
+ESEL,S,TYPE,,1
+NSLE,S
+SF,ALL,PRES,%tabPress%
+ALLSEL	
+SOLVE
+
+!TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+/CWD,%PATH_A%%PATH_B%%PATH_C%%PATH_D%%PATH_E%%PATH_FUNC%
+
+FINISH
+

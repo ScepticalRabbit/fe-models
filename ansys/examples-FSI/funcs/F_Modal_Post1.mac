@@ -1,0 +1,128 @@
+/CWD,%PATH_A%%PATH_B%%PATH_C%%PATH_D%%PATH_E%%PATH_DATA%
+
+!-------------------------------------------------------------------------
+! POST-PROCESSING - Write freqs to file
+*IF,solveModal,EQ,1,THEN
+*IF,post1WriteFreqs,EQ,1,THEN
+/POST1
+*IF,incPStress,EQ,1,THEN
+FILE,,rstp ! Read in the modal analysis results
+*ENDIF
+
+! Arrays for storing results
+sweepVecLen = numModes
+sweepIter = 1 ! Iterator for storing data in sweep vec
+*DIM,sweepElemVec,,sweepVecLen
+*DIM,sweepModeVec,,sweepVecLen
+*DIM,sweepFreqVec,,sweepVecLen
+
+! Store modal freqs in vectors
+*DO,mm,1,numModes
+    SET,1,mm
+    *GET,currFreq,active,0,set,freq
+    
+    sweepElemVec(sweepIter,1) = pipeLengElems
+    sweepModeVec(sweepIter,1) = mm
+    sweepFreqVec(sweepIter,1) = currFreq
+    sweepIter = sweepIter+1
+*ENDDO
+
+! Results Output
+*CFOPEN,modalfreqs,csv 
+*VWRITE,sweepElemVec(1),sweepModeVec(1),sweepFreqVec(1)
+%12.5E,%12.5E,%12.5E,
+*CFCLOS
+
+FINISH
+*ENDIF
+*ENDIF
+
+!-------------------------------------------------------------------------
+! POST-PROCESSING
+! NOTE: Complex frequencies are output for UNSYM and DAMP options
+! See: https://ansyshelp.ansys.com/account/secured?returnurl=/Views/Secured/corp/v212/en/ans_thry/thy_tool13.html
+! Section 14.12.10 in the ANSYS Mechanical Theory Reference
+*IF,solveModal,EQ,1,THEN
+*IF,post1PlotModes,EQ,1,THEN
+/POST1
+*IF,incPStress,EQ,1,THEN
+FILE,,rstp ! Read in the modal analysis results
+*ENDIF
+
+! Select pipe elements only 
+ALLSEL
+ESEL,S,TYPE,,1
+NSLE,S
+EPLOT
+
+! PLOT THE MODE SHAPES FOR REPORTS/PRESENTATIONS
+! Change view options
+/NUMBER,1
+/PNUM,TYPE,1
+/VIEW,1,1,2,3   
+/ANG,1
+
+SETCOL = 0
+*IF,SETCOL,EQ,1,THEN
+	/RGB,INDEX,100,100,100, 0
+	/RGB,INDEX, 80, 80, 80,13
+	/RGB,INDEX, 60, 60, 60,14
+	/RGB,INDEX, 0, 0, 0,15
+*ENDIF 
+
+/SHOW,CLOSE
+/SHOW,PNG,REV
+/GFILE,2000
+/EFACET,1
+*DO,mm,1,numModes
+    SET,1,mm
+	/AUTO,1
+    PLDISP,1
+	/AUTO,1
+    PLNSOL, U,SUM, 0,1.0
+*ENDDO    
+/SHOW,CLOSE
+/SHOW,
+
+*ENDIF
+*ENDIF
+
+!-------------------------------------------------------------------------
+! PLOT THE MESH FOR REPORT/PRESENTATIONS
+*IF,postPlotMesh,EQ,1,THEN
+/PREP7
+
+/SHOW,CLOSE
+/SHOW,PNG,REV
+/GFILE,2000
+
+/NUMBER,1
+/PNUM,TYPE,1
+/VIEW,1,1,2,3   
+/ANG,1 
+! Turn off BC Symbols
+/PBC,ALL, ,0
+
+ALLSEL
+/AUTO,1 
+EPLOT
+ALLSEL
+
+!ALLSEL
+!ESEL,S,CENT,Y,-fluidDepth/2-tol,0+tol
+!NSLE,S
+!/AUTO,1
+!EPLOT
+!ALLSEL
+
+ALLSEL
+/AUTO,1
+ESEL,S,TYPE,,1
+NSLE,S
+EPLOT
+ALLSEL
+
+/SHOW,CLOSE
+/SHOW,
+*ENDIF
+

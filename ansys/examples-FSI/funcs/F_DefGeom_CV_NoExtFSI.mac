@@ -1,0 +1,80 @@
+/PREP7
+
+!-------------------------------------------
+! GEOMETRY PARAMETERS
+
+! U-Bend Geometry
+pipeCantLeng = 595e-3		! This is from the fixed support to the mean line
+pipeBendRad = 41.3e-3		! This is the mean bend radius (not inner or outer)
+pipeLengBetweenBends = 150e-3 - 2*pipeBendRad ! To the mean line
+
+! Cross Section Geometry
+pipeInnerDiam = 13.6e-3
+pipeWallThick = 0.65e-3
+
+! Calculated parameters
+pipeOuterDiam = pipeInnerDiam+2*pipeWallThick
+pipeMeanDiam = (pipeOuterDiam + pipeInnerDiam)/2
+pipeMeanCirc = pi*pipeMeanDiam
+pipeRi = pipeInnerDiam/2
+pipeRo = pipeOuterDiam/2
+pipeRm = pipeMeanDiam/2
+! Actually used to make the pipe geom
+pipeRad = pipeRm
+
+pipeCentLocZ = (2*pipeBendRad+pipeLengBetweenBends)/2
+! Used for ease of selecting output nodes/elems
+pipeCantOutLeng = pipeCantLeng+pipeRad
+pipeUOutDistZ = pipeCentLocZ+pipeRad
+pipeUInDistZ = pipeCentLocZ-pipeRad
+pipeBendOutRad = pipeBendRad+pipeRad
+
+! Element size calculations in length units
+pipeCircSectElems = pipeCircElems/4
+pipeElemSize = pipeCantLeng/pipeLengElems
+
+! Selection tolerances based on element size
+tol = pipeElemSize/8
+ctol = pipeMeanCirc/(100*pipeCircElems)
+
+!-------------------------------------------
+! GEOMETRY DEFINITION
+K,1,0,0,pipeCentLocZ
+K,2,0,pipeRad,pipeCentLocZ
+K,3,0,0,pipeCentLocZ+pipeRad
+K,4,0,-pipeRad,pipeCentLocZ
+K,5,0,0,pipeCentLocZ-pipeRad
+
+LARC,2,3,1,pipeRad
+LARC,3,4,1,pipeRad
+LARC,4,5,1,pipeRad
+LARC,5,2,1,pipeRad
+
+! Line sizing for radial mesh generation
+LESIZE,ALL,,,pipeCircSectElems
+
+! Path along the top centre line of the pipe
+K,12,pipeCantLeng-pipeBendRad,pipeRad,pipeCentLocZ
+K,13,pipeCantLeng,pipeRad,pipeCentLocZ-pipeBendRad
+K,14,pipeCantLeng,pipeRad,-(pipeCentLocZ-pipeBendRad)
+K,15,pipeCantLeng-pipeBendRad,pipeRad,-pipeCentLocZ
+K,16,0,pipeRad,-pipeCentLocZ
+
+K,17,pipeCantLeng-pipeBendRad,pipeRad,pipeCentLocZ-pipeBendRad
+K,18,pipeCantLeng-pipeBendRad,pipeRad,-(pipeCentLocZ-pipeBendRad)
+
+L,2,12
+LARC,12,13,17,pipeBendRad
+L,13,14
+LARC,14,15,18,pipeBendRad
+L,15,16
+
+! Line elemen sizing for the pipe path
+LSEL,U,LINE,,1,4
+LESIZE,ALL,pipeElemSize
+ALLSEL
+
+! Drags circ lines to create a hollow tube
+ADRAG,1,2,3,4,,,5,6,7,8,9
+
+FINISH

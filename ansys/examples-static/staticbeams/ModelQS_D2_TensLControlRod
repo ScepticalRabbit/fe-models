@@ -1,0 +1,122 @@
+!/////////////////////////////////////////////////////
+! FE MODEL - FEEG2005 Exam
+! Author: Lloyd Fletcher
+! Date: 24/3/2021
+! Units: N, mm, MPa
+!/////////////////////////////////////////////////////
+
+FINISH
+/CLEAR,NOSTART
+/CWD,'D:\UofS_ANSYSWorkingDirectory\FEEG2005_StructuresExamCheck\Data\'
+/PREP7
+
+/PNUM,KP,1
+/PNUM,LINE,1
+/PNUM,AREA,1
+*AFUN,DEG
+
+!----------------------------------------------
+! Define Variables
+iteration = 0
+FILENUM = CHRVAL(iteration)
+
+! Column Geometry - mm
+colEcc = 40
+colLen = 400
+colRi = 4
+colRo = 5
+colRdivs = 20
+! Column Properties - MPa
+colE = 90e3
+colNu = 0.3
+
+colElemSize = 1
+tol = colElemSize/8
+
+! This example is for buckling in compression 
+! Need non-linear geometry on
+appForce = 200
+nlGeomOn = 0
+
+!----------------------------------------------
+! Define Geometry
+! K, L
+K,1,0,0,0
+K,2,colLen,0,0
+K,3,colLen,colEcc,0
+L,1,2
+L,2,3
+
+!----------------------------------------------
+! Define Material Properties 
+MP,EX,1,colE
+MP,PRXY,1,colNu
+
+!----------------------------------------------
+! Element Type and Section Definition
+ET,1,BEAM188
+SECTYPE,1, BEAM, CTUBE, CROD, 0  
+SECOFFSET,CENT 
+SECDATA,colRi,colRo,colRdivs,0,0,0,0,0,0,0,0,0 
+
+!-----------------------------------------
+! Meshing
+LESIZE,ALL,colElemSize
+LMESH,ALL 
+
+!-------------------------------
+! DEFINE LOADS AND BCS
+/SOLU
+! Apply boundary conditions in global co-ords
+CSYS,0
+
+ALLSEL
+NSEL,S,LOC,X,-tol,tol
+NSEL,R,LOC,Y,-tol,tol
+D,ALL,ALL
+ALLSEL
+
+ALLSEL
+NSEL,S,LOC,Y,colEcc-tol,colEcc+tol
+NSEL,R,LOC,X,colLen-tol,colLen+tol
+F,ALL,FX,appForce
+ALLSEL
+
+/PSF,DEFA, ,1,0,1   
+/PBF,DEFA, ,1
+/PBC,ALL, ,1
+/REPLOT  
+
+ANTYPE,0 ! Static analysis
+NLGEOM,nlGeomOn ! For large deformation this needs to be turned on
+SOLVE
+FINISH
+
+!----------------------------------------------
+! Post Processing	
+/POST1
+/DSCALE,1,1.0 
+SET,LAST
+
+/EFACET,1
+/ESHAPE,1.0    
+PLNSOL, S,X, 0,1.0  
+
+/EFACET,1   
+PLNSOL, U,SUM, 0,1.0
+
+/EFACET,1   
+PLNSOL, U,Y, 0,1.0  
+
+/EFACET,1
+/ESHAPE,1.0    
+PLNSOL, S,X, 0,1.0  
+
+!/GRAPHICS,FULL
+
+!ALLSEL
+!NSEL,S,LOC,X,colLen1-tol,colLen1+tol  
+!ESLN,S
+!/EFACET,1   
+!PLNSOL, U,Y, 0,1.0
+

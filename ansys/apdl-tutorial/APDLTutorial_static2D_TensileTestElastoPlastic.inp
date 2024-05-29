@@ -1,0 +1,623 @@
+!/////////////////////////////////////////////////////////////////////////
+! FE MODEL 2D - APDL Tutorial
+! Authors: Lloyd Fletcher
+! Date: 23rd Aug. 2021
+! Specimen Type: Tensile test
+! Units: N, m, Pa
+!/////////////////////////////////////////////////////////////////////////
+
+! README FIRST: TUTORIAL PRIMER
+! This script replicates a simple tensile test based on ASTM E8 in 2D
+! plane stress. 
+!
+! This script can be run by from the top menu using the following:
+! File -> Read Input From...
+! Or sections of the script can be copied directly into the console. 
+! Select 'Yes' to clear out the previous model when you run the script
+! I recommend that you run the script in sections to see what each block
+! of commands is doing. 
+!
+! Anything that can be done in the GUI can be replicated in code by 
+! getting the command from the log file, which is accessed from the menu:
+! File -> List -> Log File...
+!
+! All commands are well documented and the documentation can be easily
+! accessed using the 'help' command. Try typing: help,mp into the console.
+! This brings up the 'MP' command which can be used to assign material 
+! properties.
+!
+! The *.mac extension on this file allows the file to be an ANSYS macro
+! which is basically a function you can pass arguments to using the 
+! ARG variable type. For now we won't be using this but you might need
+! it later.
+
+! These two commands clear out 
+FINISH
+/CLEAR,NOSTART
+
+! This sets the working directory where ANSYS will save files
+! Can omit this command if you set the working directory on start up
+/CWD,'D:\UKAEA_Work\UKAEA_ANSYSWorkingDirectory\TutorialAPDL_QuasiStatic_TensileTest\Data\'
+
+! Setting the job name is mostly cosmetic but it is good practice
+! to name your model something sensible
+Jobname = 'Quasistatic_Tensile_Test'
+/TITLE,Jobname 
+/FILNAME,Jobname
+
+! Makes trig functions work in degrees instead of radians 
+*AFUN,DEG
+
+! This command gives us access to the preprocessor commands like geometry,
+! material properties, element definitions and mesh tools. It is the same
+! as clicking on the 'Preprocessor' in the left hand menu in the GUI. 
+! We will also use the /SOLU command to apply loads/BCs and solve our 
+! model. Finally we will use the /POST1 menu to view out results.
+/PREP7
+
+!-------------------------------------------------------------------------
+! VARIABLE DEFINITIONS
+! By convention I like to define my main variables at the top of the 
+! script for easy reading. Other variables throughout are normally just
+! intermediate calculation steps for ease of reading the code.
+
+! These are effectively 'boolean' variables that turn on and off 
+! solving and file output (try searching for these variables to find the 
+! *IF statement they are controlling). This is really useful when running
+! scripts from the menu and debugging so that ANSYS doesn't try to solve 
+! a half built model.
+solveModel = 1
+outputFiles = 0
+
+! This flag turns plasticity on and off, I suggest running the model as
+! linear elastic first before setting this to '1'.
+plasticityOn = 1
+
+! This is just a number used to identify the files associated with this
+! simulation when we output data at the end of the script. Useful for
+! running parametric sweeps and making sure we don't overwrite a previous
+! simulation.
+iteration = 0
+fileNum = CHRVAL(iteration)
+
+! Variables: Specimen Geometry ASTM-E8 Subsize Spec
+inchtom = 25.4e-3
+! Overall dimensions of the sample including gripped section
+specWidth = 3/8*inchtom
+specLeng = 4*inchtom
+specThick = 2e-3
+! Dimensions of the gauge/waisted section of the sample
+specGaugeW = 0.25*inchtom
+specGaugeL = 1*inchtom
+specWaistL = 1.25*inchtom
+specWaistRad = 0.25*inchtom
+! Element edge length, we will use quadratic triangles later
+specElemSize = 0.1*inchtom
+
+! Variables: Specimen Material Properties
+! Aluminium (approx 6082-T6)
+specEMod = 70e9
+specNu = 0.3
+! Elasto-plastic: Von Mises Isotropic Yield, Linear Hardening
+specYieldStr = 280e6
+specHardMod = 1e9
+
+! Variables: Loading/BCs
+dispY = 1e-3    ! Max Y displacement applied to top of the sample
+numSteps = 25    ! Number of loading steps to reach max displacement
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+! RUN THE SCRIPT UP TO HERE NEXT
+! You can get a list of all variables you have created by typing *STAT 
+! into the console or use the menu path: List -> Other -> Parameters
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+!-------------------------------------------------------------------------
+! SPECIMEN GEOMETRY 
+
+! Each geometrical entity in ANSYS is assigned a number so the first area
+! we create will be '1' (it will also have lines and keyppoints which will
+! have their own number). The /PNUM command allows us to turn on/off these
+! numbers so we can see what is going on. These options can be access from
+! the GUI using the menu bar at the top: PlotCtrls -> Numbering
+/PNUM,KP,1
+/PNUM,LINE,1
+/PNUM,AREA,1
+
+! Create a full sized rectangle from which we will cut the dog bone shape 
+! using area subtraction
+BLC4,0,0,specWidth,specLeng
+! NOTE: this command can also create 3D rectangular prisms try typing 
+! 'help,blc4' into the ANSYS console 
+
+! The 'PLOT' commands in ANSYS are extremely useful. APLOT stands for
+! Area PLOT. There are also many other like: LPLOT (Lines), 
+! KPLOT (Keypoints), NPLOT (nodes), EPLOT (elements) 
+APLOT
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+! RUN THE SCRIPT UP TO HERE NEXT
+! Try using the different PLOT commands to view the rectangle, note that
+! NPLOT and EPLOT will show nothing because there are no nodes/elements 
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 
+! Create variables for the centre locations of all the circles that will 
+! be subtracted from the main sample plate
+CLocX1 = specWidth/2-specGaugeW/2-specWaistRad 
+CLocX2 = specWidth/2+specGaugeW/2+specWaistRad 
+CLocY1 = specLeng/2-specWaistL/2 
+CLocY2 = specLeng/2+specWaistL/2
+
+! Create the 4 circular areas
+CYL4,CLocX1,CLocY1,specWaistRad
+CYL4,CLocX1,CLocY2,specWaistRad
+CYL4,CLocX2,CLocY1,specWaistRad
+CYL4,CLocX2,CLocY2,specWaistRad
+! NOTE: this command can create 3D cylinders and partial arcs of circles
+! and cylinders, again try looking this up in the help file to see what
+! the defaults are and what other parameters are available
+
+! Create rectangular areas to flatten the sides of the dogbone
+BLx = specWaistRad
+BLy = CLocY2 - CLocY1
+BLocY = CLocY1
+BLocX1 = specWidth/2-specGaugeW/2-BLx 
+BLocX2 = specWidth/2+specGaugeW/2 
+BLC4,BLocX1,BLocY,BLx,BLy
+BLC4,BLocX2,BLocY,BLx,BLy
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+! RUN THE SCRIPT UP TO HERE NEXT
+! Try using the PLOT commands before and after the ASBA command below to 
+! see what happens when we subtract the geometry.
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+! This command stands for 'Area SuBtract Area', using APLOT we can see
+! that our main plate is area '1' and we want to subtract everything else
+! so we use 'ALL'
+ASBA,1,ALL
+
+! The SEL and *GET commands are useful for selecting entities (keypoints,
+! lines, area, nodes, elements) and getting propeties. When we used 
+! the ASBA command the new area created is given a new number and we might
+! want this later. The block of commands below selects all areasand 
+! stores the highest area number (i.e. the last area created)
+ALLSEL
+ASEL,S,AREA,,ALL
+*GET,specAreaNum,AREA,0,NUM,MAXD
+ALLSEL
+! NOTE 1: Similar to the PLOT family of commands there are a range of SEL
+! commands: KSEL (keypoints), LSEL (Lines), NSEL (nodes), ESEL (elements).
+! NOTE 2: I like to call ALLSEL bafore/after each select block so that 
+! everything returns to the default set which is everything selected.
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+! RUN THE SCRIPT UP TO HERE NEXT
+! Here we will step through a series of SEL commands and use the PLOT 
+! commands to view what we have selected. Run the commands in this section
+! one by one to see what is happening.
+
+! For this part we are selecting lines so we will turn off numbering for
+! everything else and then call LPLOT to see our lines
+! Copy the whole block below into the console
+/PNUM,KP,0
+/PNUM,LINE,1
+/PNUM,AREA,0
+LPLOT
+
+! Create a new set ('S' in the second parameter) by selecting lines 1/6th
+! up (should be about the middle of the gripped section). Here we select 
+! by location 'LOC' in the 'Y' direction but there are many other ways to
+! select different entities. Try: help,LSEL
+ALLSEL
+LSEL,S,LOC,Y,0,specLeng/6
+LPLOT 
+
+! Refine the selection from this set ('R' in th second parameter). Using
+! the X co-ordinate of the line.
+LSEL,R,LOC,X,0
+LPLOT
+
+! We should only have one line selected so get the max line number 
+! selected and this will be the one we want
+*GET,selLineNum,LINE,0,NUM,MAX
+! Ask the line how long it is and store this variable
+*GET,specGripL,LINE,selLineNum,LENG
+! List variables so we can see the length of the line and double check we
+! stored the correct line number
+*STAT 
+! Apart from the 'PLOT' commands we can also use the 'LIST' commands to 
+! see what entities we have selected and their properties. This also works 
+! for all entities e.g. Areas (ALIST) / Nodes (NLIST)
+LLIST
+
+! Reset so we have everything selected again
+ALLSEL
+LPLOT ! Double check the reselect worked in the GUI
+LLIST ! Now we should see all lines in the geometry
+
+! NOTE: in a normal script I wouldn't have so many plot and list commands
+! they are just here to illustrate how they can be used for building/
+! debugging a model. They drastically slow down a model so remove them 
+! when not necessary
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+!-------------------------------------------------------------------------
+! MATERIAL PROPERTIES
+
+! Define elastic constants for material number '1', other materials can
+! be created and assigned to different parts of the geometry using 
+! different numbers in argument 3 of MP. 
+MP,EX,1,specEMod
+MP,PRXY,1,specNu
+MPLIST
+
+! This is the APDL syntax for an if statement. The EQ means 'equals'. 
+! Other options can be found in the help file (help,*IF)
+*IF,plasticityOn,EQ,1,THEN
+    ! Here we specify simple isotropic linear hardening with an assumed 
+    ! von Mises yield criteria.
+	TB,BISO,1
+    ! More info on plasticity can be found here:
+    ! https://ansyshelp.ansys.com/acc1ount/secured?returnurl=/Views/Secured/corp/v202/en/ans_mat/amp8sq21dldm.html
+    TBDATA,1,specYieldStr,specHardMod
+    TBLIST
+*ENDIF
+! NOTE: MPLIST and TBLIST can be used to display a text file with all the
+! created materials and the associated properties
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+! RUN THE SCRIPT UP TO HERE NEXT
+! Use the MPLIST command to check that the specified elastic constants are
+! correct
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+!-------------------------------------------------------------------------
+! ELEMENT DEFINITION
+
+! 'ET' stands for Element Type and allows us to specify an element type. 
+! Here we specify element number 1 as a 2D quadratic element (PLANE183). 
+! Option 1 set as 1 specifies 6-node triangles, option 2 is blank and 
+! option 3 as '3' specifies 2D plane stress with thickness. Use the help
+! command to look up 'ET' and 'PLANE183' to see the parameters   
+ET,1,PLANE183,1,,3,
+! 'R' stands for 'Real constants', this allows us to associate a list of
+! constants with a particular element, here we want to specify a thickness
+R,1,specThick,
+ETLIST ! List the defined elements
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+! RUN THE SCRIPT UP TO HERE NEXT
+! Use the ETLIST command to check that element we specified exists
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+!-------------------------------------------------------------------------
+! MESHING
+
+! Here we specify a default size for all elements in the mesh. If you need
+! more control look up the 'LESIZE' and 'AESIZE' commands to assign 
+! different default sizes to different lines or areas instead of specifying
+! just a global value.
+ESIZE,specElemSize
+
+! There are 2 types of mesh, 0 specifies free meshing and 1 specifies 
+! mapped meshing, you can switch this to different values as you mesh
+! different parts of the model.
+MSHKEY,2
+
+! Before calling any mesh commands we need to make sure we have the 
+! material (MAT), element (TYPE) and real constants (REAL) specified
+MAT,1
+TYPE,1
+REAL,1
+! If there were multiple materials/elements/constants you can switch 
+! between them as you mesh the model.
+
+! Here we mesh our sample using the AMESH command and the area number we
+! got earlier.
+AMESH,specAreaNum 
+! NOTE: we could also have used AMESH,ALL here because we only have one 
+! area
+EPLOT ! Plot the elements so we can see the mesh
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+! RUN THE SCRIPT UP TO HERE NEXT
+! Now we can view our mesh using the NPLOT and EPLOT commands. Note that
+! NLIST and ELIST also exist and that the /PNUM command can turn on/off
+! node and element numbers. The list commands are useful because they tell
+! you which elements have been assigned which materials/constants.
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+FINISH
+
+!-------------------------------------------------------------------------
+! DEFINE LOADS AND BCS
+
+! Now we move to the solution commands to specify our loads/BCs and setup 
+! our solver
+/SOLU
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+! RUN THE SCRIPT UP TO HERE NEXT
+! Here we will step through a series of SEL commands again to see how 
+! nodes can be selected to apply BCs.
+! NOTE: generally it is more stable to apply BCs on nodes/elements than on
+! geometry so NSEL/ESEL are the best options here
+
+! Tolerance used for selecting nodes later, we have midside nodes so this 
+! has to be less than 1/2 of the lement edge length
+specTol = specElemSize/8
+
+! Copy this block of commands to view all the nodes, zoom in on the bottom
+! edge (using the navigation tools in the right hand menu) so we can see 
+! the node numbers.
+ALLSEL
+/PNUM,NODE,1
+NPLOT
+
+! This block of commands selects the bottom edge of the sample and then
+! displays it.
+NSEL,S,LOC,Y,-specTol,specTol
+NPLOT
+
+! The 'D' command allows us to specify nodal displacements. Here we want 
+! a fixed bottom edge so we 1) apply it to ALL selected nodes, 2) specify 
+! ALL degrees of freedom and 3) set them to have 0 displacement
+D,ALL,ALL,0
+! After calling this you should see small blue triangles on the nodes 
+! showing the fixed DOFs.
+
+! We want to go back to the default selection so we reset now
+ALLSEL
+
+! Now we want to pull on the top edge and we can do this using this block
+! of commands:
+ALLSEL
+NSEL,S,LOC,Y,specLeng-specTol,specLeng+specTol
+! Here we mimic a grip by contraining X displacements and pulling up in
+! the Y direction
+D,ALL,UX,0
+D,ALL,UY,dispY
+ALLSEL
+
+/PNUM,NODE,0
+EPLOT
+
+! NOTE: you can specify nodal forces using the 'F' command and pressures 
+! using the SFE command. You can also use the CSYS command to specify BCs
+! in anothed coordinate system.
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+!-------------------------------------------------------------------------
+! SOLUTION OPTIONS AND SOLVE
+! Now we need to tell the solver how to solve the model
+ANTYPE,0    ! Specifies a static analysis
+NLGEOM,0    ! Turns on/off non-linear geometry, for large plastic 
+! deformation or buckling this needs to be set to 1
+KBC,0       ! Specifies that the the loading is applied linearly rather
+! than as a discrete step       
+AUTOTS,ON   ! Turns on automatic time stepping, this is the default so 
+! this command is not striuctly necessary
+NSUBST,numSteps,,numSteps,  ! Specify the number of substeps taken to 
+! reach our max displacement
+OUTRES,ALL,ALL  ! Output all results to the database file
+
+! Finally, we solve our model. The if statements dsiables solviong for
+! debugging purposes
+*IF,solveModel,EQ,1,THEN
+	SOLVE
+*ENDIF
+FINISH
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+! RUN THE SCRIPT UP TO HERE NEXT
+! If you set the 'solveModel' flag to 1 the model should solve. Also try 
+! setting the plasticityOn flag to 1 to observe the nonlinear solver.
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+!-------------------------------------------------------------------------
+! POST-PROCESSING
+! Now we enter the general post processor to output simulation data
+/POST1
+
+! This gives us acces to all elements/nodes. More important for 3D models
+! because the default only gives results for surface elements and nodes.
+! The option 'FULL' makes sure we can access data throughout the volume.
+/GRAPHICS,FULL
+
+! For higher order elements (like the qudratic ones we are using) this 
+! makes the midside node results available
+/EFACET,2
+
+! Report results in the global cartesian system, can be useful to change
+! this to a different co-ord system if the material has directional props
+! e.g. orthotropic elasticity or anisotropic plasticity
+RSYS,0
+
+! Read in initial result set, only do this if we have solved the model      
+*IF,solveModel,EQ,1,THEN
+    SET,FIRST	
+*ENDIF
+
+!-------------------------------------------------------------------------
+! DATA OUTPUT: Custom txt file
+! This is an example of how to write a txt file that contains simulation
+! info you might want to transfer to another program that is not part of
+! the normal ANSYS outputs. Example: material properties or variables etc
+
+! Create a *.txt file for writing data to. 
+! The '%' signs allow a string or character variable to be inserted
+*CFOPEN,SimParams_%fileNum%,txt
+
+! Write some headers to the file, the single quotes will write strings
+! The line below *VWRITE enclosed in () is a format string. Note that 
+! the format string line must go directly below *VWRITE and cannot be 
+! indented. Each string has been specified as 8 characters wide so 
+! spaces have been added to shorter strins so that they are equal. thie
+! can be made longer/shorter if needed by changing the number after 'A'
+*VWRITE,'FileNum ','SpecESze','NumSteps','MaxDispY' 
+(A8,' |',A8,' |',A8,' |',A8,' |')
+
+! Underneath the headers we will write the variables variables
+*VWRITE,iteration,numSteps,specElemSize,dispY
+(E9.3,',',E9.3,',',E9.3,',',E9.3)
+
+! Now we do the same thing for the material properties
+*VWRITE,'specEMod','specNu  ','specYStr','specHMod'
+(A8,' |',A8,' |',A8,' |',A8,' |')
+*VWRITE,specEMod,specNu,specYieldStr,specHardMod
+(E9.3,',',E9.3,',',E9.3,',',E9.3)
+
+! When we are done writing to the file we close it
+*CFCLOS
+! NOTE: all files will be written to the working directory specified at
+! the top of the file or the default directory if that command fails.
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+! RUN THE SCRIPT UP TO HERE NEXT
+! If you navigate to your working directory you should see a file called:
+! SimParams_0.txt
+!
+! It should look like this:
+!FileNum  |SpecESze |NumSteps |MaxDispY |
+!0.000E+00,0.200E+02,0.254E-02,0.500E-02
+!specEMod |specNu   |specYStr |specHMod |
+!0.700E+11,0.300E+00,0.280E+09,0.100E+10
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+!-------------------------------------------------------------------------
+! DATA OUTPUT: Write Model Data To File - ANSYS Standard Outputs
+! Now we are going to extract the results from the model including: 
+! reaction forces, displacement, stress and strain. You might not need all
+! of this so you can comment or remove blocks of code as needed. Example:
+! to generate synthetic images you only need nodal dsiplacements.
+
+! When first debugging a model it can be easier to diagnose what is going
+! on using the GUI. This is done using the 'General Postproc' menu on the 
+! left. To display results you first need to read a results set you can 
+! use the command SET,LAST (the step at max displacement) or the left menu
+! General Postproc -> Read Results -> Last Set. After that the first thing
+! to plot is the deformed shape: General Postproc -> Plot Results ->
+! Deformed Shape. Then select 'Def + Undef Edge' and pres 'OK'. 
+!
+! After that you can plot variaous kinematics (displacement,stress,strain) 
+! using: General Postproc -> Plot Results -> Contour Plot -> Nodal/Element
+! Solu.
+!
+! Finally you might want to create a video of all substeps. This is done
+! using the top menu bar: PloCtrls->Animate...->Over Results. You can then
+! select what field you want to plot (displacement,stress,strain etc). 
+! Note that this saves a *.avi of the animation in your working directory
+
+! When building/debugging a model it is useful to suppress file output 
+! Make sure that outputFiles=1 so this block of code runs
+*IF,outputFiles,EQ,1,THEN
+
+	! This block of commands sets how the output files are formatted. 
+    ! ANSYS puts a lot of headers in the files which are quite annoying
+    ! I have left them on here so you can see the default file format.
+	/HEADER,ON,ON,ON,ON,ON,ON
+    ! First we get the number of nodes in the simulation and then we 
+    ! set the page size to be much large than this so ANSYS doesn't 
+    ! insert headers all the time.
+    *GET,nCount,NODE,0,COUNT
+	/PAGE,10*nCount,,10*nCount
+	
+    ! Make sure we are outputing data for everything
+	ALLSEL
+    ! NOTE: you can use the SEL commands to select nodes/elements and
+    ! only output data from specific nodes/elements.
+    
+    ! The /OUTPUT command changes where the text generated by LIST 
+    ! commands are displayed. Specifying a string like this outputs to 
+    ! to a *.txt file.
+	/OUTPUT,Node_Locs_%fileNum%,txt
+    ! Output the initial node locations to file
+	NLIST,ALL, , ,XYZ,NODE,NODE,NODE
+	/OUTPUT ! Resets the output target back to default (opening a window)
+
+	! This outputs the element connectivity table (similar to the nodes)
+	/OUTPUT,Elem_Table_%fileNum%,txt
+	ELIST,ALL
+	/OUTPUT
+    
+    ! Now we want to loop over all our loading sub steps and output the
+    ! the data. We start by reading in the first set.
+	SET,FIRST
+    ! When ANSYS performs a non-linear analysis (e.g. plasticity) and 
+    ! automatic time stepping is on the solver might need to take some
+    ! extra steps to ensure everything is stable so we ask ANSYS how
+    ! many steps it took and loop over all of them
+    *GET,numActualSteps,ACTIVE,0,SOLU,NCMSS
+    ! You can also use the TIME command to force ANSYS to output at 
+    ! specific intervals if you have set the time step.    
+    
+	*DO,ii,1,numActualSteps
+        ! This string will be used to identify each substep
+		stepStr = CHRVAL(ii)
+		
+        ! This block of code extracts the reaction forces from the nodes
+        ! at the top of the sample where we applied a displacement.
+		ALLSEL  ! First make sure we start from the default set
+        ! Select the nodes at the top edge
+		NSEL,S,LOC,Y,specLeng-specTol,specLeng+specTol 
+        ! Output the nodal forces to a txt file:
+		/OUTPUT,Node_Force_%fileNum%_%stepStr%,txt,,
+		NFORCE,ALL  
+		/OUTPUT
+		ALLSEL ! Return to the default set
+		
+		! Select nodes and elements from the specimen only. Here we use
+        ! ESEL to get elements of type 1 but we could have selected them
+        ! by material number or location.
+		ESEL,S,TYPE,,1
+        ! The SL commands are another useful set of commands. NSLE stands
+        ! for Node SeLect by Elements. So this will select all nodes in 
+        ! the current element set. There is also ESLN which is the reverse
+        ! allowing us to select elements based on the current node set. 
+        ! This also works for geometry so LSLA would select all lines that
+        ! are part of the currently selected set of areas.
+		NSLE,S
+        ! NOTE: For this model it is not necessary to have these select 
+        ! commands because we want to output everything on the specimen.
+        ! However, if we had have modelled a pin loaded or gripped sample
+        ! we might have wanted to exclude the loading pins or grips from
+        ! the data extraction.
+        
+		! First we change the OUTPUT to a txt file. Then call PRNSOL 
+        ! which stands for PRint Nodal SOLution. Here we output the 
+        ! nodal displacements.
+		/OUTPUT,Node_Disp_%fileNum%_%stepStr%,txt,,
+		PRNSOL,U,COMP   
+		/OUTPUT
+		
+		! Stress and strain are calculated at integration points not at 
+        ! the nodes. However, if we call PRNSOL then ANSYS automatically
+        ! interpolates the stress/strain data to nodes for us. The block
+        ! of commands below prints the strains to file
+		/OUTPUT,Node_Strain_%fileNum%_%stepStr%,txt,,
+		PRNSOL,EPTO,COMP   
+		/OUTPUT	
+		
+		! Same as above but this time we write the stress to file
+        /OUTPUT,Node_Stress_%fileNum%_%stepStr%,txt,,
+		PRNSOL,S,COMP   
+		/OUTPUT
+		
+        ! Now we move to the next substep
+		SET,NEXT
+	*ENDDO
+*ENDIF
+
+! This block is for diagnostic purposes only. If we have solved the model 
+! then we plot the von Mises stress at the last step as a contour plot.
+*IF,solveModel,EQ,1,THEN
+    SET,LAST    
+    PLNSOL, S,EQV, 0,1.0
+*ENDIF
+
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+! RUN THE SCRIPT UP TO HERE NEXT
+! Try removing all the extra list/plot commands to speed up the script. 
+! This file is laregly comments and you will see that the script is quite
+! compact once these are removed.
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

@@ -1,0 +1,11 @@
+/SOLU
+
+!-------------------------------------------------------------------------
+! BOUNDARY CONDITIONS
+! Fix pipe ends
+ALLSEL
+NSEL,S,LOC,X,-tol,tol
+D,ALL,ALL,0
+ALLSEL
+
+FINISH

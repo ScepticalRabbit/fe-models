@@ -1,0 +1,200 @@
+!/////////////////////////////////////////////////////////////////////////
+! FE MODEL - MODAL ANALYSIS OF A CANITLEVER BEAM
+! Authors: Lloyd Fletcher
+! Date: 14th Jan. 2022
+! Units: N, m, Pa
+!/////////////////////////////////////////////////////////////////////////
+! Verification model
+
+! These two commands clear out ANSYS and set the working directory
+FINISH
+/CLEAR,NOSTART
+!/CWD,'D:\UKAEA_Work\FEA_ANSYS_WorkDir\Project_WPBB_ModalAnalysis\Data_M1_Shell\'
+/CWD,'D:\ANSYS_WorkDir\WPBB_FIV_Blankets\M1_UCantS\Data\'
+Jobname = 'ModalUBend'
+/TITLE,Jobname 
+/FILNAME,Jobname
+! Makes trig functions work in degrees instead of radians 
+*AFUN,DEG   
+pi = 3.141592653589793
+/SHOW,CLOSE
+/SHOW,
+
+/PREP7 
+!-------------------------------------------------------------------------
+! PARAMETER DEFINITIONS
+
+! Geometry 
+pipeCantLeng = 500e-3
+pipeBendRad = 50e-3
+pipeLengBetweenBends = 50e-3
+
+! Cross Section Geometry
+pipeInnerDiam = 8e-3
+pipeWallThick = 2.75e-3
+
+pipeOuterDiam = pipeInnerDiam+2*pipeWallThick
+pipeMeanDiam = (pipeOuterDiam + pipeInnerDiam)/2
+pipeMeanCirc = pi*pipeMeanDiam
+
+pipeRi = pipeInnerDiam/2
+pipeRo = pipeOuterDiam/2
+pipeRm = pipeMeanDiam/2
+
+! Actually used to make the pipe geom
+pipeRad = pipeRm
+
+! Mesh size variables
+pipeLengElems = 60
+pipeCircElems = 12
+pipeCircSectElems = pipeCircElems/4
+
+pipeElemSize = pipeCantLeng/pipeLengElems
+tol = pipeElemSize/8
+
+! Material Properties of EUROFER @ 321degC
+! pipeRho = 7744  ! kg/m^3 - density of EUROFER @ 321deg C  only 
+! Density is modified to account for internal H20 @ 321degC
+pipeRho = 8051
+pipeE = 200.7e9   ! Pa
+pipeNu = 0.3
+
+! Number of modes to extract
+numModes = 10
+
+! Arrays for storing results
+sweepVecLen = numModes
+sweepIter = 1 ! Iterator for storing data in sweep vec
+*DIM,sweepElemVec,,sweepVecLen
+*DIM,sweepModeVec,,sweepVecLen
+*DIM,sweepFreqVec,,sweepVecLen
+
+!-------------------------------------------------------------------------
+! GEOMETRY
+pipeCentLocZ = (2*pipeBendRad+pipeLengBetweenBends)/2
+
+K,1,0,0,pipeCentLocZ
+K,2,0,pipeRad,pipeCentLocZ
+K,3,0,0,pipeCentLocZ+pipeRad
+K,4,0,-pipeRad,pipeCentLocZ
+K,5,0,0,pipeCentLocZ-pipeRad
+
+LARC,2,3,1,pipeRad
+LARC,3,4,1,pipeRad
+LARC,4,5,1,pipeRad
+LARC,5,2,1,pipeRad
+
+! Line sizing for radial mesh generation
+LESIZE,ALL,,,pipeCircSectElems
+
+! Path alont the top centre line of the pipe
+K,12,pipeCantLeng-pipeBendRad,pipeRad,pipeCentLocZ
+K,13,pipeCantLeng,pipeRad,pipeCentLocZ-pipeBendRad
+K,14,pipeCantLeng,pipeRad,-(pipeCentLocZ-pipeBendRad)
+K,15,pipeCantLeng-pipeBendRad,pipeRad,-pipeCentLocZ
+K,16,0,pipeRad,-pipeCentLocZ
+
+K,17,pipeCantLeng-pipeBendRad,pipeRad,pipeCentLocZ-pipeBendRad
+K,18,pipeCantLeng-pipeBendRad,pipeRad,-(pipeCentLocZ-pipeBendRad)
+
+L,2,12
+LARC,12,13,17,pipeBendRad
+L,13,14
+LARC,14,15,18,pipeBendRad
+L,15,16
+
+! Line elemen sizing for the pipe path
+LSEL,U,LINE,,1,4
+LESIZE,ALL,pipeElemSize
+ALLSEL
+
+! Drags circ lines to create a hollow tube
+ADRAG,1,2,3,4,,,5,6,7,8,9
+
+!-------------------------------------------------------------------------
+! MAT PROPS
+MP,DENS,1,pipeRho
+MP,EX,1,pipeE
+MP,NUXY,1,pipeNu
+
+!-------------------------------------------------------------------------
+! ELEMENT DEF
+ET,1,SHELL281 ! SHELL281 WITH SHELL OPTION
+SECT,1,SHELL
+SECD,pipeWallThick,1 ! THICK,MATID,THETA,NUMPTS
+
+!-------------------------------------------------------------------------
+! MESHING
+AMESH,ALL
+
+!-------------------------------------------------------------------------
+! BOUNDARY CONDITIONS
+/SOLU
+ALLSEL
+NSEL,S,LOC,X,-tol,tol
+D,ALL,ALL,0
+ALLSEL
+
+! Turn on BC display and replot model
+EPLOT
+/PSF,DEFA, ,1,0,1   
+/PBF,DEFA, ,1
+/PBC,ALL, ,1
+/VIEW,1,1,2,3   
+/ANG,1  
+/REP,FAST 
+
+!-------------------------------------------------------------------------
+! SOLUTION AND OUTPUT OPTS
+ANTYPE,MODAL
+MODOPT,lanb,numModes
+MXPAND,numModes
+
+SOLVE
+FINISH
+
+!-------------------------------------------------------------------------
+! POST-PROCESSING
+/POST1
+/EFACET,1
+
+! Store modal freqs in vectors
+*DO,mm,1,numModes
+    SET,1,mm
+    *GET,currFreq,active,0,set,freq
+    
+    sweepElemVec(sweepIter,1) = pipeLengElems
+    sweepModeVec(sweepIter,1) = mm
+    sweepFreqVec(sweepIter,1) = currFreq
+    sweepIter = sweepIter+1
+*ENDDO
+
+! Results Output
+*CFOPEN,freqResults,csv 
+*VWRITE,sweepElemVec(1),sweepModeVec(1),sweepFreqVec(1)
+%12.5E,%12.5E,%12.5E,
+*CFCLOS
+
+! Mode Display and Animation
+!SET,1,2
+!PLDISP,2 ! uncomment to plot the displacement
+!ANMODE,10,.5e-1 ! uncomment to animate the displacement
+
+/SHOW,CLOSE
+/SHOW,PNG,REV
+/GFILE,2000
+
+/RGB,INDEX,100,100,100, 0
+/RGB,INDEX, 80, 80, 80,13
+/RGB,INDEX, 60, 60, 60,14
+/RGB,INDEX, 0, 0, 0,15
+
+/EFACET,1
+*DO,mm,1,numModes
+    SET,1,mm
+    PLDISP,1
+    PLNSOL, U,SUM, 0,1.0
+*ENDDO    
+
+/SHOW,CLOSE
+/SHOW,

@@ -1,0 +1,272 @@
+!/////////////////////////////////////////////////////
+! FRACTURE MODEL DATA
+! File Type: GEOMETRY ONLY
+! Specimen Type: C(T)
+! Scenario: N/A
+! Units: N, mm, MPa
+!/////////////////////////////////////////////////////
+
+FINISH
+/CLEAR,NOSTART
+!/CWD,'C:\Users\Lloyd\Documents\ANSYS_WorkingDirectory\1_CT_KModel'
+/PREP7
+
+/PNUM,KP,1
+/PNUM,LINE,1
+/PNUM,AREA,0
+
+!/////////////////////////////////////////////
+W = 12		! Characteristic Length
+!//////////////////////////////////////////////
+*AFUN,DEG
+
+!----------------------------------------------
+! Define ARGS
+ITER = 1
+CLFACTOR = 0.7			! cracklength = clfactor*W
+CEXT = (CLFACTOR-0.5)*W	! crack extension from initial crack length
+
+!----------------------------------------------
+! Define Flag Variables
+! Variables that can be args
+DEL = 0.2		! initial small disp 
+JCRIT = 2.5		! Critical value of J
+JTOL = JCRIT*0.005	! acceptable fracture range Jcrit +/- Jran
+
+! Other Flags
+! 1 = ortho bone, 2 = iso bone
+BONEPROPS = 2		! Use bone material props
+MESHSIZE = 0.2		! Size of mesh before refinement
+		
+!----------------------------------------------
+! Define Geometry Variables
+CL = CLFACTOR*W		! Crack length
+CL0 = 0.5*W
+
+NL = 0.47*W		! Notch length\
+NW = 0.063*W/2	! Half Notch Width
+WL = NW/(1/sqrt(3))	! Wedge Length
+SNL = 0.02*W	! Scalpel Notch Length
+PR = 0.25*W/2	! Pin Radius
+PMR = 0.35*W/2	! Hole mesh square size
+PL = 0.275*W	! Pin Y Location
+
+!----------------------------------------------
+! Define Key Points
+! General CT geometry
+! FIXED POINTS!
+K,101,0,0
+!//////////////////
+! PIN HOLE CENTRES
+K,102,0,0.275*W
+K,103,0,-0.275*W
+!//////////////////
+K,1,-0.25*W,0.6*W
+K,2,-PMR,0.6*W
+K,3,PMR,0.6*W
+K,4,NL-WL,0.6*W
+K,5,NL+SNL,0.6*W
+K,6,-PMR,PL+PMR
+K,7,PMR,PL+PMR
+K,8,-PMR,PL-PMR
+K,9,PMR,PL-PMR
+K,10,-0.25*W,NW
+K,11,-PMR,NW
+K,12,PMR,NW
+K,13,-0.25*W,-NW
+K,14,-PMR,-NW
+K,15,PMR,-NW
+K,16,-PMR,-PL+PMR
+K,17,PMR,-PL+PMR
+K,18,-PMR,-PL-PMR
+K,19,PMR,-PL-PMR
+K,20,-0.25*W,-0.6*W
+K,21,-PMR,-0.6*W
+K,22,PMR,-0.6*W
+K,23,NL-WL,-0.6*W
+K,24,NL+SNL,-0.6*W
+
+! Wedge Notch kps
+! top part of wedge and notch
+K,25,NL-WL,NW
+K,26,NL-WL,0.05*W
+K,27,NL+SNL,0.05*W
+! top sharp notch
+!////////////////
+K,28,NL+SNL,0
+K,29,NL,0
+!////////////////
+
+! bottom part of wedge and notch
+K,30,NL-WL,-NW
+! bottom of sharp notch
+!////////////////
+K,31,NL,0
+K,32,NL+SNL,0
+!////////////////
+K,33,NL+SNL,-0.05*W
+K,34,NL-WL,-0.05*W
+
+! FAR EDGE CORNERS
+K,35,W,0.6*W
+K,36,W,-0.6*W
+
+! CRACK PATH KPS
+! FAR EDGE
+K,37,W,0.05*W
+K,38,W,-0.05*W
+
+K,39,W,0
+K,40,W,0
+
+!----------------------------------------------
+! Define Lines
+! Create Hole and Pin Geometry
+! TOP AND BOTTOM PIN
+CIRCLE,102,PR
+CIRCLE,103,PR
+! TOP AND BOTTOM HOLE
+CIRCLE,102,PR
+CIRCLE,103,PR
+
+! CREATE BASIC (NON-CRACK) LINES
+! CREATE HORIZONTAL LINES
+L,1,2
+L,2,3
+L,3,4
+L,4,5
+L,6,7
+L,8,9
+L,10,11
+L,11,12
+L,12,25
+L,13,14
+L,14,15
+L,15,30
+L,16,17
+L,18,19
+L,20,21
+L,21,22
+L,22,23
+L,23,24
+
+! CREATE VERTICAL LINES
+L,1,10
+L,13,20
+
+L,2,6
+L,6,8
+L,8,11
+L,14,16
+L,16,18
+L,18,21
+
+L,3,7
+L,7,9
+L,9,12
+L,15,17
+L,17,19
+L,19,22
+
+L,4,26
+L,34,23
+
+L,5,27
+L,33,24
+
+! WEDGE NOTCH LINES
+L,25,26
+L,26,27
+L,27,28
+L,28,29
+L,29,25
+
+L,30,31
+L,31,32
+L,32,33
+L,33,34
+L,34,30
+
+! CREATE CRACK PATH AREA LINES
+! CREATE OUTER EDGES
+L,5,35
+L,35,37
+L,38,36
+L,36,24
+
+! CREATE BOUNDING BOX
+L,27,37
+L,37,39
+L,33,38
+L,40,38
+
+! CREATE CRACK FACE LINES
+L,28,39	! 71
+L,32,40	! 72
+
+!----------------------------------------------
+! Create Areas
+!////////////////////////////
+! PIN AREAS ARE 1 AND 2
+AL,1,2,3,4
+AL,5,6,7,8
+!////////////////////////////
+! HOLE AREAS ARE 3 AND 4
+AL,21,44,22,38,9,10,11,12
+AL,29,30,47,41,13,14,15,16
+!////////////////////////////
+! FIXED AREAS
+!-----------------------------------------
+! TOP HALF
+AL,17,37,38,39,23,35
+AL,18,43,21,37
+AL,22,45,24,39
+AL,19,49,53,25,45,44,43
+AL,20,51,54,49
+
+! BOTTOM HALF
+AL,26,40,41,42,31,36
+AL,27,46,29,40
+AL,30,48,32,42
+AL,28,50,33,48,47,46,62
+AL,61,52,34,50
+
+! WEDGE TOP AND BOTTOM
+AL,53,54,55,56,57
+AL,58,59,60,61,62
+!-----------------------------------------
+! REMAINING AREAS
+AL,63,64,67,51
+AL,69,65,66,52
+AL,67,68,71,55
+AL,72,70,69,60
+
+!----------------------------------------------
+! Material Properties
+! orthotropic properties of bovine bone
+*IF,BONEPROPS,EQ,1,THEN
+	MP,EX,1,21000
+	MP,EY,1,11000
+	MP,PRXY,1,0.3
+	MP,GXY,1,5300
+*ELSEIF,BONEPROPS,EQ,2,THEN
+	MP,EX,1,21000
+	MP,PRXY,1,0.3
+*ELSE
+	MP,EX,1,70000
+	MP,PRXY,1,0.33
+*ENDIF
+
+! Anvil Properties
+MP,EX,2,200000
+MP,PRXY,2,0.3
+
+!----------------------------------------------
+! Meshing and Element Type
+! use a quad element with plane stress
+ET,1,plane183,0,,0
+
+P1 = MESHSIZE
+P2 = 1.5*P1
+
+

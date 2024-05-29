@@ -1,0 +1,532 @@
+! Set to data output path
+/CWD,%PATH_A%%PATH_B%%PATH_C%%PATH_D%%PATH_E%%PATH_DATA%
+
+!-------------------------------------------------------------------------
+! POST-PROCESSING - POST26 - Define number of variables
+/POST26
+KEEP,ON
+NUMVAR,100
+FINISH
+
+!-------------------------------------------------------------------------
+! POST-PROCESSING - POST26 - Stress vs TIME
+*IF,post26TSvmOn,EQ,1,THEN
+*IF,solveTrans,EQ,1,THEN
+/POST26
+KEEP,ON
+
+!======================================
+! Store stress data for support nodes
+! VON MISES
+ESOL,11,s1_top_maxSElem,s1_top_maxSNode,S,EQV,s1_top_maxSvm ! store support max Svm
+ESOL,12,s1_bot_maxSElem,s1_bot_maxSNode,S,EQV,s1_bot_maxSvm ! store support max Svm
+ESOL,13,s1_mid_maxSElem,s1_mid_maxSNode,S,EQV,s1_mid_maxSvm ! store support max Svm
+ESOL,14,s2_top_maxSElem,s2_top_maxSNode,S,EQV,s2_top_maxSvm ! store support max Svm
+ESOL,15,s2_bot_maxSElem,s2_bot_maxSNode,S,EQV,s2_bot_maxSvm ! store support max Svm
+ESOL,16,s2_mid_maxSElem,s2_mid_maxSNode,S,EQV,s2_mid_maxSvm ! store support max Svm
+
+ESOL,17,s1_top_maxSElem,s1_top_maxSNode,S,1,s1_top_maxS1
+ESOL,18,s1_bot_maxSElem,s1_bot_maxSNode,S,1,s1_bot_maxS1
+ESOL,19,s1_mid_maxSElem,s1_mid_maxSNode,S,1,s1_mid_maxS1
+ESOL,20,s2_top_maxSElem,s2_top_maxSNode,S,1,s2_top_maxS1
+ESOL,21,s2_bot_maxSElem,s2_bot_maxSNode,S,1,s2_bot_maxS1
+ESOL,22,s2_mid_maxSElem,s2_mid_maxSNode,S,1,s2_mid_maxS1
+
+ESOL,23,s1_top_maxSElem,s1_top_maxSNode,S,2,s1_top_maxS2
+ESOL,24,s1_bot_maxSElem,s1_bot_maxSNode,S,2,s1_bot_maxS2
+ESOL,25,s1_mid_maxSElem,s1_mid_maxSNode,S,2,s1_mid_maxS2
+ESOL,26,s2_top_maxSElem,s2_top_maxSNode,S,2,s2_top_maxS2
+ESOL,27,s2_bot_maxSElem,s2_bot_maxSNode,S,2,s2_bot_maxS2
+ESOL,28,s2_mid_maxSElem,s2_mid_maxSNode,S,2,s2_mid_maxS2
+
+ESOL,29,s1_top_maxSElem,s1_top_maxSNode,S,3,s1_top_maxS3
+ESOL,30,s1_bot_maxSElem,s1_bot_maxSNode,S,3,s1_bot_maxS3
+ESOL,31,s1_mid_maxSElem,s1_mid_maxSNode,S,3,s1_mid_maxS3
+ESOL,32,s2_top_maxSElem,s2_top_maxSNode,S,3,s2_top_maxS3
+ESOL,33,s2_bot_maxSElem,s2_bot_maxSNode,S,3,s2_bot_maxS3
+ESOL,34,s2_mid_maxSElem,s2_mid_maxSNode,S,3,s2_mid_maxS3
+
+STORE,MERGE
+
+!======================================
+! Export time history of stress to file
+*GET,size,VARI,,NSETS
+
+! Svm - Support 1
+*DIM,s1_top_suppSvm_arr,ARRAY,size
+VGET,s1_top_suppSvm_arr(1),11
+*DIM,s1_bot_suppSvm_arr,ARRAY,size
+VGET,s1_bot_suppSvm_arr(1),12
+*DIM,s1_mid_suppSvm_arr,ARRAY,size
+VGET,s1_mid_suppSvm_arr(1),13
+
+! Svm - Support 2
+*DIM,s2_top_suppSvm_arr,ARRAY,size
+VGET,s2_top_suppSvm_arr(1),14
+*DIM,s2_bot_suppSvm_arr,ARRAY,size
+VGET,s2_bot_suppSvm_arr(1),15
+*DIM,s2_mid_suppSvm_arr,ARRAY,size
+VGET,s2_mid_suppSvm_arr(1),16
+
+! S1 - Support 1
+*DIM,s1_top_suppS1_arr,ARRAY,size
+VGET,s1_top_suppS1_arr(1),17
+*DIM,s1_bot_suppS1_arr,ARRAY,size
+VGET,s1_bot_suppS1_arr(1),18
+*DIM,s1_mid_suppS1_arr,ARRAY,size
+VGET,s1_mid_suppS1_arr(1),19
+
+! S1 - Support 2
+*DIM,s2_top_suppS1_arr,ARRAY,size
+VGET,s2_top_suppS1_arr(1),20
+*DIM,s2_bot_suppS1_arr,ARRAY,size
+VGET,s2_bot_suppS1_arr(1),21
+*DIM,s2_mid_suppS1_arr,ARRAY,size
+VGET,s2_mid_suppS1_arr(1),22
+
+! S2 - Support 1
+*DIM,s1_top_suppS2_arr,ARRAY,size
+VGET,s1_top_suppS2_arr(1),23
+*DIM,s1_bot_suppS2_arr,ARRAY,size
+VGET,s1_bot_suppS2_arr(1),24
+*DIM,s1_mid_suppS2_arr,ARRAY,size
+VGET,s1_mid_suppS2_arr(1),25
+
+! S2 - Support 2
+*DIM,s2_top_suppS2_arr,ARRAY,size
+VGET,s2_top_suppS2_arr(1),26
+*DIM,s2_bot_suppS2_arr,ARRAY,size
+VGET,s2_bot_suppS2_arr(1),27
+*DIM,s2_mid_suppS2_arr,ARRAY,size
+VGET,s2_mid_suppS2_arr(1),28
+
+! S3 - Support 1
+*DIM,s1_top_suppS3_arr,ARRAY,size
+VGET,s1_top_suppS3_arr(1),29
+*DIM,s1_bot_suppS3_arr,ARRAY,size
+VGET,s1_bot_suppS3_arr(1),30
+*DIM,s1_mid_suppS3_arr,ARRAY,size
+VGET,s1_mid_suppS3_arr(1),31
+
+! S3 - Support 2
+*DIM,s2_top_suppS3_arr,ARRAY,size
+VGET,s2_top_suppS3_arr(1),32
+*DIM,s2_bot_suppS3_arr,ARRAY,size
+VGET,s2_bot_suppS3_arr(1),33
+*DIM,s2_mid_suppS3_arr,ARRAY,size
+VGET,s2_mid_suppS3_arr(1),34
+
+
+!======================================
+! Write to CSV
+*CFOPEN,post26_suppSvmMPa,csv
+*VWRITE,s1_top_suppSvm_arr(1),s1_bot_suppSvm_arr(1),s1_mid_suppSvm_arr(1),s2_top_suppSvm_arr(1),s2_bot_suppSvm_arr(1),s2_mid_suppSvm_arr(1)
+%12.5E,%12.5E,%12.5E,%12.5E,%12.5E,%12.5E,
+*CFCLOS
+
+*CFOPEN,post26_suppS1MPa,csv
+*VWRITE,s1_top_suppS1_arr(1),s1_bot_suppS1_arr(1),s1_mid_suppS1_arr(1),s2_top_suppS1_arr(1),s2_bot_suppS1_arr(1),s2_mid_suppS1_arr(1)
+%12.5E,%12.5E,%12.5E,%12.5E,%12.5E,%12.5E,
+*CFCLOS
+
+*CFOPEN,post26_suppS2MPa,csv
+*VWRITE,s1_top_suppS2_arr(1),s1_bot_suppS2_arr(1),s1_mid_suppS2_arr(1),s2_top_suppS2_arr(1),s2_bot_suppS2_arr(1),s2_mid_suppS2_arr(1)
+%12.5E,%12.5E,%12.5E,%12.5E,%12.5E,%12.5E,
+*CFCLOS
+
+*CFOPEN,post26_suppS3MPa,csv
+*VWRITE,s1_top_suppS3_arr(1),s1_bot_suppS3_arr(1),s1_mid_suppS3_arr(1),s2_top_suppS3_arr(1),s2_bot_suppS3_arr(1),s2_mid_suppS3_arr(1)
+%12.5E,%12.5E,%12.5E,%12.5E,%12.5E,%12.5E,
+*CFCLOS
+
+!======================================
+! Show and save figs
+/SHOW,CLOSE
+/SHOW,PNG,REV
+/GFILE,2000
+
+/GRID,1 ! turn grid on
+/AXLAB,y,Svm(max) [Pa] ! y-axis label disp
+/AXLAB,x,t [s]
+PLVAR,11,12,13,14,15,16
+/XRANGE,0.0,simTime
+/TITLE,Stress At Supports
+
+/SHOW,CLOSE
+/SHOW
+
+/GRID,1 ! turn grid on
+/AXLAB,y,Svm(max) [Pa] ! y-axis label disp
+/AXLAB,x,t [s]
+PLVAR,11,12,13,14,15,16
+/XRANGE,0.0,simTime
+/TITLE,Stress At Supports
+
+FINISH
+*ENDIF
+*ENDIF
+
+!-------------------------------------------------------------------------
+! POST-PROCESSING - POST26 - Uy Vs T
+*IF,post26TUyOn,EQ,1,THEN
+*IF,solveTrans,EQ,1,THEN
+/POST26
+KEEP,ON
+
+!======================================
+! Save nodal displacements to vars
+NSOL,51,dispNodeFreeEnd,u,x,dispNodeFreeEnd_ux_var ! store uY displacements
+NSOL,52,dispNodeOffset1,u,x,dispNodeOffset1_ux_var 
+NSOL,53,dispNodeOffset2,u,x,dispNodeOffset2_ux_var 
+NSOL,54,dispNodeMidSpan1,u,x,dispNodeMidSpan1_ux_var 
+NSOL,55,dispNodeMidSpan2,u,x,dispNodeMidSpan2_ux_var 
+
+NSOL,56,dispNodeFreeEnd,u,y,dispNodeFreeEnd_uy_var ! store uY displacements
+NSOL,57,dispNodeOffset1,u,y,dispNodeOffset1_uy_var 
+NSOL,58,dispNodeOffset2,u,y,dispNodeOffset2_uy_var 
+NSOL,59,dispNodeMidSpan1,u,y,dispNodeMidSpan1_uy_var 
+NSOL,60,dispNodeMidSpan2,u,y,dispNodeMidSpan2_uy_var
+
+NSOL,61,dispNodeFreeEnd,u,z,dispNodeFreeEnd_uz_var ! store uY displacements
+NSOL,62,dispNodeOffset1,u,z,dispNodeOffset1_uz_var 
+NSOL,63,dispNodeOffset2,u,z,dispNodeOffset2_uz_var 
+NSOL,64,dispNodeMidSpan1,u,z,dispNodeMidSpan1_uz_var 
+NSOL,65,dispNodeMidSpan2,u,z,dispNodeMidSpan2_uz_var  
+STORE,MERGE
+
+!======================================
+! Export time history of stress to file
+*GET,size,VARI,,NSETS
+
+*DIM,dispNodeFreeEnd_ux_arr,ARRAY,size
+VGET,dispNodeFreeEnd_ux_arr,51
+*DIM,dispNodeOffset1_ux_arr,ARRAY,size
+VGET,dispNodeOffset1_ux_arr,52
+*DIM,dispNodeOffset2_ux_arr,ARRAY,size
+VGET,dispNodeOffset2_ux_arr,53
+*DIM,dispNodeMidSpan1_ux_arr,ARRAY,size
+VGET,dispNodeMidSpan1_ux_arr,54
+*DIM,dispNodeMidSpan2_ux_arr,ARRAY,size
+VGET,dispNodeMidSpan2_ux_arr,55
+
+*DIM,dispNodeFreeEnd_uy_arr,ARRAY,size
+VGET,dispNodeFreeEnd_uy_arr,56
+*DIM,dispNodeOffset1_uy_arr,ARRAY,size
+VGET,dispNodeOffset1_uy_arr,57
+*DIM,dispNodeOffset2_uy_arr,ARRAY,size
+VGET,dispNodeOffset2_uy_arr,58
+*DIM,dispNodeMidSpan1_uy_arr,ARRAY,size
+VGET,dispNodeMidSpan1_uy_arr,59
+*DIM,dispNodeMidSpan2_uy_arr,ARRAY,size
+VGET,dispNodeMidSpan2_uy_arr,60
+
+*DIM,dispNodeFreeEnd_uz_arr,ARRAY,size
+VGET,dispNodeFreeEnd_uz_arr,61
+*DIM,dispNodeOffset1_uz_arr,ARRAY,size
+VGET,dispNodeOffset1_uz_arr,62
+*DIM,dispNodeOffset2_uz_arr,ARRAY,size
+VGET,dispNodeOffset2_uz_arr,63
+*DIM,dispNodeMidSpan1_uz_arr,ARRAY,size
+VGET,dispNodeMidSpan1_uz_arr,64
+*DIM,dispNodeMidSpan2_uz_arr,ARRAY,size
+VGET,dispNodeMidSpan2_uz_arr,65
+
+!======================================
+! Save to *.csv files
+*CFOPEN,post26_dispNodeUx,csv
+*VWRITE,dispNodeFreeEnd_ux_arr(1),dispNodeOffset1_ux_arr(1),dispNodeOffset2_ux_arr(1),dispNodeMidSpan1_ux_arr(1),dispNodeMidSpan2_ux_arr(1)
+%12.5E,%12.5E,%12.5E,%12.5E,%12.5E,
+*CFCLOS
+
+*CFOPEN,post26_dispNodeUy,csv
+*VWRITE,dispNodeFreeEnd_uy_arr(1),dispNodeOffset1_uy_arr(1),dispNodeOffset2_uy_arr(1),dispNodeMidSpan1_uy_arr(1),dispNodeMidSpan2_uy_arr(1)
+%12.5E,%12.5E,%12.5E,%12.5E,%12.5E,
+*CFCLOS
+
+*CFOPEN,post26_dispNodeUz,csv
+*VWRITE,dispNodeFreeEnd_uz_arr(1),dispNodeOffset1_uz_arr(1),dispNodeOffset2_uz_arr(1),dispNodeMidSpan1_uz_arr(1),dispNodeMidSpan2_uz_arr(1)
+%12.5E,%12.5E,%12.5E,%12.5E,%12.5E,
+*CFCLOS
+
+!======================================
+! Plot Figures
+
+! Plots the time history of the nodal displacement
+/SHOW,CLOSE
+/SHOW,PNG,REV
+/GFILE,2000
+
+/GRID,1 ! turn grid on
+/AXLAB,y,Disp, u_y [m] ! y-axis label disp
+/AXLAB,x,Time [s]
+/XRANGE,0.0,simTime
+/TITLE,Disp. Y of Nodes
+XVAR,1,
+PLVAR,56,57,58,59,60
+
+/SHOW,CLOSE
+/SHOW
+
+/GRID,1 ! turn grid on
+/AXLAB,y,Disp u_y [m] ! y-axis label disp
+/AXLAB,x,Time [s]
+/XRANGE,0.0,simTime
+/TITLE,Disp. Y of Nodes
+XVAR,1,
+PLVAR,56,57,58,59,60
+
+*ENDIF
+*ENDIF
+
+!-------------------------------------------------------------------------
+! POST-PROCESSING - POST26 - Strain vs TIME
+*IF,post26TSvmOn,EQ,1,THEN
+*IF,solveTrans,EQ,1,THEN
+/POST26
+KEEP,ON
+
+!======================================
+! Store stress data for support nodes
+! VON MISES
+ESOL,71,s1_top_maxSElem,s1_top_maxSNode,EPEL,EQV,s1_top_maxEvm ! store support max Svm
+ESOL,72,s1_bot_maxSElem,s1_bot_maxSNode,EPEL,EQV,s1_bot_maxEvm ! store support max Svm
+ESOL,73,s1_mid_maxSElem,s1_mid_maxSNode,EPEL,EQV,s1_mid_maxEvm ! store support max Svm
+ESOL,74,s2_top_maxSElem,s2_top_maxSNode,EPEL,EQV,s2_top_maxEvm ! store support max Svm
+ESOL,75,s2_bot_maxSElem,s2_bot_maxSNode,EPEL,EQV,s2_bot_maxEvm ! store support max Svm
+ESOL,76,s2_mid_maxSElem,s2_mid_maxSNode,EPEL,EQV,s2_mid_maxEvm ! store support max Svm
+
+ESOL,77,s1_top_maxSElem,s1_top_maxSNode,EPEL,1,s1_top_maxE1
+ESOL,78,s1_bot_maxSElem,s1_bot_maxSNode,EPEL,1,s1_bot_maxE1
+ESOL,79,s1_mid_maxSElem,s1_mid_maxSNode,EPEL,1,s1_mid_maxE1
+ESOL,80,s2_top_maxSElem,s2_top_maxSNode,EPEL,1,s2_top_maxE1
+ESOL,81,s2_bot_maxSElem,s2_bot_maxSNode,EPEL,1,s2_bot_maxE1
+ESOL,82,s2_mid_maxSElem,s2_mid_maxSNode,EPEL,1,s2_mid_maxE1
+
+ESOL,83,s1_top_maxSElem,s1_top_maxSNode,EPEL,2,s1_top_maxE2
+ESOL,84,s1_bot_maxSElem,s1_bot_maxSNode,EPEL,2,s1_bot_maxE2
+ESOL,85,s1_mid_maxSElem,s1_mid_maxSNode,EPEL,2,s1_mid_maxE2
+ESOL,86,s2_top_maxSElem,s2_top_maxSNode,EPEL,2,s2_top_maxE2
+ESOL,87,s2_bot_maxSElem,s2_bot_maxSNode,EPEL,2,s2_bot_maxE2
+ESOL,88,s2_mid_maxSElem,s2_mid_maxSNode,EPEL,2,s2_mid_maxE2
+
+ESOL,89,s1_top_maxSElem,s1_top_maxSNode,EPEL,3,s1_top_maxE3
+ESOL,90,s1_bot_maxSElem,s1_bot_maxSNode,EPEL,3,s1_bot_maxE3
+ESOL,91,s1_mid_maxSElem,s1_mid_maxSNode,EPEL,3,s1_mid_maxE3
+ESOL,92,s2_top_maxSElem,s2_top_maxSNode,EPEL,3,s2_top_maxE3
+ESOL,93,s2_bot_maxSElem,s2_bot_maxSNode,EPEL,3,s2_bot_maxE3
+ESOL,94,s2_mid_maxSElem,s2_mid_maxSNode,EPEL,3,s2_mid_maxE3
+
+STORE,MERGE
+
+!======================================
+! Export time history of stress to file
+*GET,size,VARI,,NSETS
+
+! Svm - Support 1
+*DIM,s1_top_suppEvm_arr,ARRAY,size
+VGET,s1_top_suppEvm_arr(1),71
+*DIM,s1_bot_suppEvm_arr,ARRAY,size
+VGET,s1_bot_suppEvm_arr(1),72
+*DIM,s1_mid_suppEvm_arr,ARRAY,size
+VGET,s1_mid_suppEvm_arr(1),73
+
+! Svm - Support 2
+*DIM,s2_top_suppEvm_arr,ARRAY,size
+VGET,s2_top_suppEvm_arr(1),74
+*DIM,s2_bot_suppEvm_arr,ARRAY,size
+VGET,s2_bot_suppEvm_arr(1),75
+*DIM,s2_mid_suppEvm_arr,ARRAY,size
+VGET,s2_mid_suppEvm_arr(1),76
+
+! S1 - Support 1
+*DIM,s1_top_suppE1_arr,ARRAY,size
+VGET,s1_top_suppE1_arr(1),77
+*DIM,s1_bot_suppE1_arr,ARRAY,size
+VGET,s1_bot_suppE1_arr(1),78
+*DIM,s1_mid_suppE1_arr,ARRAY,size
+VGET,s1_mid_suppE1_arr(1),79
+
+! S1 - Support 2
+*DIM,s2_top_suppE1_arr,ARRAY,size
+VGET,s2_top_suppE1_arr(1),80
+*DIM,s2_bot_suppE1_arr,ARRAY,size
+VGET,s2_bot_suppE1_arr(1),81
+*DIM,s2_mid_suppE1_arr,ARRAY,size
+VGET,s2_mid_suppE1_arr(1),82
+
+! S2 - Support 1
+*DIM,s1_top_suppE2_arr,ARRAY,size
+VGET,s1_top_suppE2_arr(1),83
+*DIM,s1_bot_suppE2_arr,ARRAY,size
+VGET,s1_bot_suppE2_arr(1),84
+*DIM,s1_mid_suppE2_arr,ARRAY,size
+VGET,s1_mid_suppE2_arr(1),85
+
+! S2 - Support 2
+*DIM,s2_top_suppE2_arr,ARRAY,size
+VGET,s2_top_suppE2_arr(1),86
+*DIM,s2_bot_suppE2_arr,ARRAY,size
+VGET,s2_bot_suppE2_arr(1),87
+*DIM,s2_mid_suppE2_arr,ARRAY,size
+VGET,s2_mid_suppE2_arr(1),88
+
+! S3 - Support 1
+*DIM,s1_top_suppE3_arr,ARRAY,size
+VGET,s1_top_suppE3_arr(1),89
+*DIM,s1_bot_suppE3_arr,ARRAY,size
+VGET,s1_bot_suppE3_arr(1),90
+*DIM,s1_mid_suppE3_arr,ARRAY,size
+VGET,s1_mid_suppE3_arr(1),91
+
+! S3 - Support 2
+*DIM,s2_top_suppE3_arr,ARRAY,size
+VGET,s2_top_suppE3_arr(1),92
+*DIM,s2_bot_suppE3_arr,ARRAY,size
+VGET,s2_bot_suppE3_arr(1),93
+*DIM,s2_mid_suppE3_arr,ARRAY,size
+VGET,s2_mid_suppE3_arr(1),94
+
+
+!======================================
+! Write to CSV
+*CFOPEN,post26_suppEvm,csv
+*VWRITE,s1_top_suppEvm_arr(1),s1_bot_suppEvm_arr(1),s1_mid_suppEvm_arr(1),s2_top_suppEvm_arr(1),s2_bot_suppEvm_arr(1),s2_mid_suppEvm_arr(1)
+%12.5E,%12.5E,%12.5E,%12.5E,%12.5E,%12.5E,
+*CFCLOS
+
+*CFOPEN,post26_suppE1,csv
+*VWRITE,s1_top_suppE1_arr(1),s1_bot_suppE1_arr(1),s1_mid_suppE1_arr(1),s2_top_suppE1_arr(1),s2_bot_suppE1_arr(1),s2_mid_suppE1_arr(1)
+%12.5E,%12.5E,%12.5E,%12.5E,%12.5E,%12.5E,
+*CFCLOS
+
+*CFOPEN,post26_suppE2,csv
+*VWRITE,s1_top_suppE2_arr(1),s1_bot_suppE2_arr(1),s1_mid_suppE2_arr(1),s2_top_suppE2_arr(1),s2_bot_suppE2_arr(1),s2_mid_suppE2_arr(1)
+%12.5E,%12.5E,%12.5E,%12.5E,%12.5E,%12.5E,
+*CFCLOS
+
+*CFOPEN,post26_suppE3,csv
+*VWRITE,s1_top_suppE3_arr(1),s1_bot_suppE3_arr(1),s1_mid_suppE3_arr(1),s2_top_suppE3_arr(1),s2_bot_suppE3_arr(1),s2_mid_suppE3_arr(1)
+%12.5E,%12.5E,%12.5E,%12.5E,%12.5E,%12.5E,
+*CFCLOS
+
+!======================================
+! Show and save figs
+/SHOW,CLOSE
+/SHOW,PNG,REV
+/GFILE,2000
+
+/GRID,1 ! turn grid on
+/AXLAB,y,Evm(max) [-] ! y-axis label disp
+/AXLAB,x,t [s]
+PLVAR,71,72,73,74,75,76
+/XRANGE,0.0,simTime
+/TITLE,Strain At Supports
+
+/SHOW,CLOSE
+/SHOW
+
+/GRID,1 ! turn grid on
+/AXLAB,y,Evm(max) [-] ! y-axis label disp
+/AXLAB,x,t [s]
+PLVAR,71,72,73,74,75,76
+/XRANGE,0.0,simTime
+/TITLE,Strain At Supports
+
+FINISH
+*ENDIF
+*ENDIF
+
+!-------------------------------------------------------------------------
+! POST-PROCESSING - POST26 - FFT
+*IF,post26FFTOn,EQ,1,THEN
+*IF,solveTrans,EQ,1,THEN
+/POST26
+KEEP,ON
+
+NSOL,2,impNode,u,y,impNodeUy ! store uY displacements
+STORE,MERGE
+*GET,UyMaxVal,VARI,2,EXTREM,VMAX
+*GET,UyMaxTime,VARI,2,EXTREM,TMAX
+
+! Plots the time history of the nodal displacement
+/GRID,1 ! turn grid on
+/AXLAB,y,Disp [m] ! y-axis label disp
+/AXLAB,x,Time [s]
+/XRANGE,0.0,simTime
+/TITLE,Disp. of Imp. Node
+XVAR,1,
+PLVAR,2,
+/SHOW
+
+! Convert nodal solution variable to an array
+*GET,UySize,VARI,,NSETS
+*DIM,UyArr,ARRAY,UySize
+VGET,UyArr(1),2
+
+! APDL FFT REFERENCE
+! https://ansyshelp.ansys.com/account/secured?returnurl=/Views/Secured/corp/v212/en/ans_cmd/Hlp_C_FFT.html
+! Convert nodal solution array to a vector for the FFT
+*VEC,UyVec,D,ALLOC,UySize,1
+*DO,ii,1,UySize
+    UyVec(ii) = UyArr(ii)
+*ENDDO
+
+! Create complex vector to store FFT
+*VEC,UyFFT,Z,ALLOC,UySize,1
+
+FFTMethod = 0
+*IF,FFTMethod,EQ,1,THEN
+    *FFT,FORW,UyVec,UyFFT,,,FULL
+*ELSE
+    *FFT,FORW,UyVec,UyFFT,,,PART
+*ENDIF
+
+! Separate real and imaginary parts of the FFT
+*VEC,UyFFTI,Z,COPY,UyFFT
+*AXPY,,,,0.,-1.,UyFFTI
+*VEC,UyI,D,COPY,UyFFTI
+*VEC,UyR,D,COPY,UyFFT
+
+! Compute FFT modulus
+*EXPORT,UyR,APDL,fftr
+*EXPORT,UyI,APDL,ffti
+
+UyFFTSize = UyR_rowDim
+
+*IF,FFTmethod,eq,0,then
+  UyFFTSize = UyFFTSize/2
+*ENDIF
+
+*DIM,tArr,ARRAY,UyFFTSize
+*DIM,fArr,TABLE,UyFFTSize
+*DIM,ind,TABLE,UyFFTSize
+*DIM,modfft,ARRAY,UyFFTSize
+*DIM,modfftdisp,TABLE,UyFFTSize
+
+! See Matlab/Python FFT examples below
+fMax = 1/(2*timeStep)
+fInc = fMax/(UyFFTSize-1)
+
+*DO,ii,1,UyFFTSize
+  ind(ii)   = ii
+  tArr(ii) = timeStep*(ii-1)
+  fArr(ii) = fInc*(ii-1)
+  modfft(ii)= sqrt( fftr(ii)*fftr(ii) + ffti(ii)*ffti(ii) )
+  modfftdisp(ii) = modfft(ii)
+*ENDDO
+
+
+/GRID,1 ! turn grid on
+/AXLAB,X,Freq. [Hz]
+/AXLAB,Y,Amp. [-]
+/XRANGE,0.0,500.0
+/TITLE,FFT of Imp. Node
+*VPLOT,fArr,modfftdisp
+/SHOW
+
+!NOTE: nat freq 1 should be 41.6 Hz for DWT1
+! nat freq 3 Torsion @ 125 Hz
+FINISH
+*ENDIF
+*ENDIF
+

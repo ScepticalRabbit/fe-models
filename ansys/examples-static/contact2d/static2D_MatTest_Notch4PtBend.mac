@@ -1,0 +1,600 @@
+!/////////////////////////////////////////////////////////////////////////
+! FE MODEL - Mechanical Static 2D
+! Authors: Lloyd Fletcher
+! Date: 23rd Aug. 2021
+! Specimen Type: 3 Point Bend Test
+! Units: N, m, Pa
+!/////////////////////////////////////////////////////////////////////////
+
+! These two commands clear out ANSYS and set the working directory
+FINISH
+/CLEAR,NOSTART
+/CWD,'D:\UKAEA_Work\Code_ANSYS\Project_MT2_BendTest\Data_MatTest2D_Notch4PtBend\'
+Jobname = 'static2D_MatTest_Notch4PtBend'
+/TITLE,Jobname 
+/FILNAME,Jobname
+! Makes trig functions work in degrees instead of radians 
+*AFUN,DEG  
+
+/PREP7
+!-------------------------------------------------------------------------
+! VARIABLE DEFINITIONS
+
+! Script Control Flags
+solveModel = 1
+outputTxtFiles = 1
+plasticityOn = 0
+nonLinGeomOn = 0
+displayOn = 1
+
+! Number to identify the simulation number
+iteration = 0
+fileNum = CHRVAL(iteration)
+
+! Variables: Geometry in [m]
+! Specimen Geometry
+specLeng = 24e-3    
+specSpan = 20e-3
+specHeight = 4e-3
+specThick = 2e-3
+specElemSize = 0.25e-3
+selTol = specElemSize/8
+specOverHang = (specLeng-specSpan)/2
+
+! Specimen Notch Geometry
+specNotch1On = 1
+specNotch1Rad = 1.0e-3
+specNotch1LocX = 0.5*specLeng
+specNotch1LocY = 0.5*specHeight
+
+specNotch2On = 0
+specNotch2Rad = 1.0e-3
+specNotch2LocX = 0.5*specLeng
+specNotch2LocY = 0
+
+! Anvil Geometry
+anvilNum = 4
+anvilRad = 2e-3
+anvilElemSize = 0.4e-3
+anvilCentPos = specLeng/2
+anvilUpperSpan = specSpan/2
+
+! Variables: Material Properties
+! PMMA (approx)
+specEMod = 3e9
+specNu = 0.35
+! Elasto-plastic: Von-Mises Isotropic Yield, Linear Hardening
+specYieldStr = 50e6
+specHardMod = specEMod/100
+
+! Assume anvils are steel and don't yield
+anvilEMod = 200e9
+anvilNu = 0.3 
+
+! Variables: Loading/BCs
+dispY = -0.5e-3    ! Max Y displacement applied to top of the sample
+numSteps = 5   ! Number of loading steps to reach max displacement
+
+!-------------------------------------------------------------------------
+! SPECIMEN GEOMETRY
+/PNUM,LINE,1
+/PNUM,AREA,1 
+
+! Create the main beam
+BLC4,0,0,specLeng,specHeight
+
+! Create notch 1 if needed
+*IF,specNotch1On,EQ,1,THEN
+    CYL4,specNotch1LocX,specNotch1LocY,specNotch1Rad
+*ENDIF
+
+! Create notch 2 if needed
+*IF,specNotch2On,EQ,1,THEN
+    CYL4,specNotch2LocX,specNotch2LocY,specNotch2Rad
+*ENDIF
+
+*IF,specNotch1On,EQ,1,OR,specNotch2On,EQ,1,THEN
+    ASBA,1,ALL
+*ENDIF
+*GET,specAreaNum,AREA,0,NUM,MAX
+
+! Centres for each of the three anvils from left to right
+! Y
+CLocY1 = -anvilRad
+CLocY2 = specHeight+anvilRad
+CLocY3 = specHeight+anvilRad
+CLocY4 = -anvilRad
+! X
+CLocX1 = specOverHang
+CLocX2 = anvilCentPos-anvilUpperSpan/2
+CLocX3 = anvilCentPos+anvilUpperSpan/2
+CLocX4 = specLeng-specOverHang
+
+! Create the cricular geometry for the anvils
+CYL4,CLocX1,CLocY1,anvilRad,0,,180,
+CYL4,CLocX2,CLocY2,anvilRad,180,,360,
+CYL4,CLocX3,CLocY3,anvilRad,180,,360,
+CYL4,CLocX4,CLocY4,anvilRad,0,,180,
+
+!---------------------------------
+! MATERIAL PROPERTIES
+! Specimen 
+MP,EX,1,specEMod
+MP,PRXY,1,specNu
+
+*IF,plasticityOn,EQ,1,THEN
+    ! Here we specify simple isotropic linear hardening with an assumed 
+    ! von Mises yield criteria.
+	TB,BISO,1
+    ! More info on plasticity can be found here:
+    ! https://ansyshelp.ansys.com/acc1ount/secured?returnurl=/Views/Secured/corp/v202/en/ans_mat/amp8sq21dldm.html
+    TBDATA,1,specYieldStr,specHardMod
+    TBLIST
+*ENDIF
+
+! Anvils
+MP,EX,2,anvilEMod
+MP,PRXY,2,anvilNu
+
+!-------------------------------------------------------------------------
+! ELEMENT DEFINITION
+! Quadratic, 6-node triangles, 2D Plane Stress with Thickness
+! 0 ->  8 node quad, 1-> 6 node triangle
+
+! Specimen = Quads 
+ET,1,PLANE183,0,,3,
+R,1,specThick,
+
+! Anvil = Triangles
+ET,2,PLANE183,1,,3,
+R,2,specThick,
+
+!-------------------------------------------------------------------------
+! MESHING
+
+! MESH SPECIMEN
+! Set element edge length
+ESIZE,specElemSize
+! Specify mapped meshing if possible, if not then free mesh
+MSHKEY,2
+! Materal, element and constants to mesh with
+MAT,1
+TYPE,1
+REAL,1
+! Mesh the sample area
+ASEL,S,AREA,,specAreaNum
+AMESH,ALL
+ALLSEL
+
+! MESH ANVILS
+! Set element edge length
+ESIZE,anvilElemSize
+
+ALLSEL
+LSEL,S,LOC,Y,CLocY1-selTol,CLocY1+selTol
+LSEL,A,LOC,Y,CLocY2-selTol,CLocY2+selTol
+LESIZE,ALL,anvilElemSize
+ALLSEL
+
+ALLSEL
+ASEL,U,AREA,,specAreaNum
+LSLA,S
+LSEL,U,LOC,Y,CLocY1-selTol,CLocY1+selTol
+LSEL,U,LOC,Y,CLocY2-selTol,CLocY2+selTol
+LESIZE,ALL,specElemSize/2
+ALLSEL
+
+! Specify mapped meshing if possible, if not then free mesh
+MSHKEY,2
+! Materal, element and constants to mesh with
+MAT,2
+TYPE,2
+REAL,2
+! Mesh the anvils
+ASEL,U,LOC,Y,0,specHeight
+AMESH,ALL
+ALLSEL
+
+
+!-------------------------------------------------------------------------
+! CONTACT SURFACE ELEMENT DEF AND MESHING
+! NOTE: use CNCHECK to test the contacy pairs!
+
+!=========================================================================
+! CONTACT NOTES:
+! From: https://ansyshelp.ansys.com/account/secured?returnurl=/Views/Secured/corp/v202/en/ans_ctec/Hlp_ctec_dessurf.html
+! - If a convex surface is expected to come into contact with a flat or concave surface, the flat/concave surface should be the target surface.
+!   - Convex = ball, concave = cup, for ball on flat then ball is contact  
+! - If one surface has a fine surface mesh and, in comparison, the other has a coarse mesh, the fine mesh should be the contact surface and the coarse mesh should be the target surface.
+! - If one surface is stiffer than the other, the softer surface should be the contact surface and the stiffer surface should be the target surface.
+! - If one surface is markedly larger than the other surface, such as in the instance where one surface surrounds the other surface, the larger surface should be the target surface.
+! Also see: https://www.youtube.com/watch?v=yUhTaTwM-c4
+! - contact points cannot pass through the target face
+!=========================================================================
+
+! CONTACT ANALYSIS for this case
+MP,MU,12,0 ! friction for contact = 0
+ET,11,TARGE169
+ET,12,CONTA172
+R,12,,,1,1,,1
+KEYOPT,12,2,0
+KEYOPT,12,5,1
+KEYOPT,12,9,1
+KEYOPT,12,10,2
+KEYOPT,12,12,0
+
+MP,MU,14,0 ! friction for contact = 0
+ET,13,TARGE169
+ET,14,CONTA172
+R,14,,,1,1,,-1
+KEYOPT,14,2,0
+KEYOPT,14,5,1
+KEYOPT,14,9,1
+KEYOPT,14,10,2
+KEYOPT,14,12,0
+
+MP,MU,16,0 ! friction for contact = 0
+ET,15,TARGE169
+ET,16,CONTA172
+R,16,,,1,1,,1
+KEYOPT,16,2,0
+KEYOPT,16,5,1
+KEYOPT,16,9,1
+KEYOPT,16,10,2
+KEYOPT,16,12,0
+
+MP,MU,18,0 ! friction for contact = 0
+ET,17,TARGE169
+ET,18,CONTA172
+R,18,,,1,1,,1
+KEYOPT,18,2,0
+KEYOPT,18,5,1
+KEYOPT,18,9,1
+KEYOPT,18,10,2
+KEYOPT,18,12,0
+
+!-------------------------------
+! BOTTOM LEFT
+
+! ANVIL - CONTACT
+ALLSEL
+ASEL,U,AREA,,specAreaNum
+ASEL,R,LOC,X,CLocX1-anvilRad,CLocX1+anvilRad
+LSLA
+LSEL,R,LOC,Y,-0.5*anvilRad,0
+NSLL,S,1
+! Set Element Type and Constants
+TYPE,12
+MAT,12
+REAL,12
+! Mesh the surface
+ESURF
+ALLSEL
+
+! SPECIMENT - TARGET
+ALLSEL
+ESEL,S,TYPE,,1
+NSLE,S
+NSEL,R,LOC,Y,-selTol,selTol
+NSEL,R,LOC,X,CLocX1-specOverHang-selTol,CLocX1+specOverHang+selTol
+! Set Element Type and Constants
+TYPE,11
+! Mesh the surface
+ESURF
+ALLSEL
+
+! Debugging
+*IF,displayOn,EQ,1,THEN
+    ALLSEL
+    ESEL,S,TYPE,,12
+    ESEL,A,TYPE,,11
+    EPLOT
+    ALLSEL
+*ENDIF
+
+!-------------------------------
+! TOP LEFT
+
+! ANVIL - CONTACT
+ALLSEL
+ASEL,U,AREA,,specAreaNum
+ASEL,R,LOC,X,CLocX2-anvilRad,CLocX2+anvilRad
+LSLA
+LSEL,R,LOC,Y,specHeight,specHeight+0.5*anvilRad
+NSLL,S,1
+! Set Element Type and Constants
+TYPE,14
+MAT,14
+REAL,14
+! Mesh the surface
+ESURF
+ALLSEL
+
+! SPECIMEN - TARGET
+ALLSEL
+ESEL,S,TYPE,,1
+NSLE,S
+NSEL,R,LOC,Y,specHeight-selTol,specHeight+selTol
+NSEL,R,LOC,X,CLocX2-specOverHang-selTol,CLocX2+specOverHang+selTol
+! Set Element Type and Constants
+TYPE,13
+! Mesh the surface
+ESURF
+ALLSEL
+
+! Debugging
+*IF,displayOn,EQ,1,THEN
+    ALLSEL
+    ESEL,S,TYPE,,14
+    ESEL,A,TYPE,,13
+    EPLOT
+    ALLSEL
+*ENDIF
+
+!-------------------------------
+! TOP RIGHT
+
+! ANVIL - CONTACT
+ALLSEL
+ASEL,U,AREA,,specAreaNum
+ASEL,R,LOC,X,CLocX3-anvilRad,CLocX3+anvilRad
+LSLA
+LSEL,R,LOC,Y,specHeight,specHeight+0.5*anvilRad
+NSLL,S,1
+! Set Element Type and Constants
+TYPE,16
+MAT,16
+REAL,16
+! Mesh the surface
+ESURF
+ALLSEL
+
+! SPECIMEN - TARGET
+ALLSEL
+ESEL,S,TYPE,,1
+NSLE,S
+NSEL,R,LOC,Y,specHeight-selTol,specHeight+selTol
+NSEL,R,LOC,X,CLocX3-specOverHang-selTol,CLocX3+specOverHang+selTol
+! Set Element Type and Constants
+TYPE,15
+! Mesh the surface
+ESURF
+ALLSEL
+
+! Debugging
+*IF,displayOn,EQ,1,THEN
+    ALLSEL
+    ESEL,S,TYPE,,16
+    ESEL,A,TYPE,,15
+    EPLOT
+    ALLSEL
+*ENDIF
+
+!-------------------------------
+! BOTTOM RIGHT
+
+! ANVIL - CONTACT
+ALLSEL
+ASEL,U,AREA,,specAreaNum
+ASEL,R,LOC,X,CLocX4-anvilRad,CLocX4+anvilRad
+LSLA
+LSEL,R,LOC,Y,-0.5*anvilRad,0
+NSLL,S,1
+! Set Element Type and Constants
+TYPE,18
+MAT,18
+REAL,18
+! Mesh the surface
+ESURF
+ALLSEL
+
+! SPECIMENT - TARGET
+ALLSEL
+ESEL,S,TYPE,,1
+NSLE,S
+NSEL,R,LOC,Y,-selTol,selTol
+NSEL,R,LOC,X,CLocX4-specOverHang-selTol,CLocX4+specOverHang+selTol
+! Set Element Type and Constants
+TYPE,17
+! Mesh the surface
+ESURF
+ALLSEL
+
+! Debugging
+*IF,displayOn,EQ,1,THEN
+    ALLSEL
+    ESEL,S,TYPE,,17
+    ESEL,A,TYPE,,18
+    EPLOT
+    ALLSEL
+*ENDIF
+
+*IF,displayOn,EQ,1,THEN
+    ALLSEL
+    ESEL,S,TYPE,,11,18
+    EPLOT
+    ALLSEL
+*ENDIF
+
+FINISH
+!-------------------------------------------------------------------------
+! DEFINE LOADS AND BCS
+/SOLU
+CLocTol = anvilElemSize/100
+
+! Fix X translation of sample by grabbing a central node
+ALLSEL
+ESEL,S,TYPE,,1
+NSLE,S
+NSEL,R,LOC,X,specLeng/2-selTol,specLeng/2+selTol
+*GET,centBotNodeLocY,NODE,0,MNLOC,Y
+NSEL,R,LOC,Y,centBotNodeLocY-selTol,centBotNodeLocY+selTol
+D,ALL,UX,0
+ALLSEL
+
+! Fix bottom anvils
+ALLSEL
+ESEL,S,TYPE,,2
+NSLE,S
+NSEL,R,LOC,Y,CLocY1-CLocTol,CLocY1+CLocTol
+D,ALL,ALL,0
+ALLSEL
+
+! Apply displacement to top anvil(s)
+ALLSEL
+ESEL,S,TYPE,,2
+NSLE,S
+NSEL,R,LOC,Y,CLocY2-CLocTol,CLocY2+CLocTol
+D,ALL,UX,0
+D,ALL,UY,dispY
+ALLSEL
+
+*IF,displayOn,EQ,1,THEN
+    /PSF,DEFA, ,1,0,1   
+    /PBF,DEFA, ,1 
+    /PBC,ALL, ,1
+    NPLOT
+*ENDIF
+
+!----------------------------------------------
+! Solution conditions
+ANTYPE,0
+NLGEOM,nonLinGeomOn
+KBC,0
+AUTOTS,ON
+NSUBST,numSteps,maxSteps,numSteps
+OUTRES,ALL,ALL
+
+*IF,solveModel,EQ,1,THEN
+	SOLVE
+*ENDIF
+
+FINISH
+
+!----------------------------------------------
+! Post Processing	
+/POST1
+! Setup post-processing options
+/GRAPHICS,FULL  ! Make sure all results are available for listing/plotting
+/EFACET,2       ! Make mid-side node results available
+/DSCALE,1,1.0   ! Scale displacements to be 1:1
+
+! Get number of elements and nodes on the specimen and total
+ALLSEL
+ESEL,S,TYPE,,1
+NSLE,S
+*GET,specNodes,NODE,0,COUNT
+*GET,specElems,ELEM,0,COUNT
+ALLSEL
+*GET,totNodes,NODE,0,COUNT
+*GET,totElems,ELEM,0,COUNT
+
+!-----------------------------------------------------
+! Output Simulation Parameters
+! NOTE: can use %/ at the end of a form at string to
+! get a new line
+*CFOPEN,SimParams_%FILENUM%,txt
+
+*VWRITE,'fileNumber','NLGeomOn','PlasticOn'
+%12C|%12C|%12C|
+*VWRITE,iteration,nonLinGeomOn,plasticityOn
+%11I,%11I,%11I,
+
+*VWRITE,'numSteps','totElems','totNodes','specElems','specNodes',
+%12C|%12C|%12C|%12C|%12C|
+*VWRITE,numSteps,totElems,totNodes,specElems,specNodes
+%12I,%12I,%12I,%12I,%12I,
+
+*VWRITE,'specElSze','specLx','specLy','specLz','dispY'
+%12C|%12C|%12C|%12C|%12C|
+*VWRITE,specElemSize,specLeng,specHeight,specThick,dispY
+%12.5E,%12.5E,%12.5E,%12.5E,%12.5E,
+
+*VWRITE,'specElasMod','specNu','specSyield','specHardMod'
+%12C|%12C|%12C|%12C|
+*VWRITE,specEMod,specNu,specYieldStr,specHardMod
+%12.5E,%12.5E,%12.5E,%12.5E,
+
+*VWRITE,'notch1On','notch1LocX','notch1LocY','notch1Rad'
+%12C|%12C|%12C|%12C|
+*VWRITE,specNotch1On,specNotch1LocX,specNotch1LocY,specNotch1Rad
+%12I,%12.5E,%12.5E,%12.5E,
+
+*VWRITE,'notch2On','notch2LocX','notch2LocY','notch2Rad'
+%12C|%12C|%12C|%12C|
+*VWRITE,specNotch2On,specNotch2LocX,specNotch2LocY,specNotch2Rad
+%12I,%12.5E,%12.5E,%12.5E,
+
+*CFCLOS
+!-----------------------------------------------------
+
+*IF,outputTxtFiles,EQ,1,THEN
+	/GRAPHICS,FULL
+	SET,FIRST	! Read in initial result set
+	RSYS,0 ! Report results in the global cartesian system 
+
+	! Setup formatting for output files
+	!/HEADER,OFF,OFF,OFF,OFF,OFF,OFF
+	!/HEADER,ON,ON,ON,ON,ON,OFF
+	!/PAGE,2*totNodes,,2*totNodes
+	
+	! Select nodes and elements from the specimen only
+	ESEL,S,TYPE,,1
+	NSLE,S,ALL
+	
+	! Get the node locations and save to file
+	/OUTPUT,Node_Locs_%FILENUM%,txt
+	NLIST,ALL, , ,XYZ,NODE,NODE,NODE
+	/OUTPUT
+
+	! Get the element table
+	/OUTPUT,Elem_Table_%FILENUM%,txt
+	ELIST,ALL
+	/OUTPUT
+
+	! Loop through each time step and save to file
+	SET,FIRST 	! Read in initial result set
+	*DO,S,1,numSteps
+		stepStr = CHRVAL(S)
+		
+		ALLSEL
+        NSEL,S,LOC,Y,CLocY2-CLocTol,CLocY2+CLocTol
+		/OUTPUT,Node_Force_%FILENUM%_%stepStr%,txt,,
+		NFORCE,ALL  
+		/OUTPUT
+		ALLSEL
+		
+		ALLSEL
+		! Select nodes and elements from the specimen only
+		ESEL,S,TYPE,,1
+		NSLE,S,ALL
+		! Get nodal displacement
+		/OUTPUT,Node_Disp_%FILENUM%_%stepStr%,txt,,
+		PRNSOL,U,COMP   
+		/OUTPUT
+		
+		! Get strain at the nodes
+		/OUTPUT,Node_Strain_%FILENUM%_%stepStr%,txt,,
+		PRNSOL,EPTO,COMP   
+		/OUTPUT	
+		
+		! Get stress at the nodes
+		/OUTPUT,Node_Stress_%FILENUM%_%stepStr%,txt,,
+		PRNSOL,S,COMP   
+		/OUTPUT
+		
+		ALLSEL	
+		SET,NEXT
+	*ENDDO
+*ENDIF
+
+*IF,solveModel,EQ,1,THEN
+*IF,displayOn,EQ,1,THEN
+    /AUTO,1 
+    /REP,FAST
+    SET,LAST
+    /EFACET,1   
+    PLNSOL, S,EQV, 0,1.0
+*ENDIF
+*ENDIF
+

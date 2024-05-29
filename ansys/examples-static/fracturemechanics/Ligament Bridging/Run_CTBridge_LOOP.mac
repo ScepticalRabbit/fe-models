@@ -1,0 +1,41 @@
+FINISH
+/CLEAR,NOSTART
+/CWD,'C:\Users\Lloyd\Documents\ANSYS_WorkingDirectory\Model_LigamentBridge'
+
+!--------------------------------------------------------------
+!  LIGAMENT BRIDGE LOOP
+! Param Lims = 9,10,19
+*DIM,MATVEC,ARRAY,3
+MATVEC(1)=1,3,4
+
+*DIM,BKVEC,ARRAY,7
+BKVEC(1)=1,5,25,50,100,250,500
+
+*DIM,LBVEC,ARRAY,5
+LBVEC(1)= 0.02,0.05,0.10,0.25,0.50
+
+I = 1
+*DO,MI,1,3	! MATERIAL
+*DO,X,1,7	! STIFFNESS, 7
+*DO,Y,1,5	! LENGTH, 5
+*DO,Z,1,9	! POSITION, 9
+	CL = 0.7
+	BK = BKVEC(X)
+	LBPC = LBVEC(Y)
+	LBX = 0.1*Z
+	MATTYPE = MATVEC(MI)
+	
+	CHECKFRONT = LBX+LBPC/2
+	CHECKBACK = LBX-LBPC/2
+	*IF,CHECKFRONT,LE,1,THEN
+	*IF,CHECKBACK,GE,0,THEN
+		PARSAV,ALL,LBLoopParams
+		CTF_Bridge,I,CL,LBX,LBPC,BK,MATTYPE
+		PARRES,NEW,LBLoopParams
+		I = I+1
+	*ENDIF	
+	*ENDIF	
+*ENDDO
+*ENDDO
+*ENDDO
+*ENDDO

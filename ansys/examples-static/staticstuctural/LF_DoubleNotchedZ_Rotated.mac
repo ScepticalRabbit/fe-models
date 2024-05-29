@@ -1,0 +1,233 @@
+!/////////////////////////////////////////////////////
+! FE MODEL 2D
+! Units: N, m, Pa
+!/////////////////////////////////////////////////////
+
+FINISH
+/CLEAR,NOSTART
+!/CWD,'E:\ANSYS_WorkingDirectory\Notches_Rotated\28deg'
+/CWD,'D:\UofS_ANSYSWorkingDirectory\QSModel_Penny_DNZ\'
+/PREP7
+
+/PNUM,KP,1
+/PNUM,LINE,1
+/PNUM,AREA,1
+*AFUN,DEG
+
+!----------------------------------------------
+! Define Variables
+iteration = 0
+FILENUM = CHRVAL(iteration)
+
+! Specimen Geometry
+specLx = 15e-3
+specLy = 15e-3
+specLz = 2e-3
+specElemSize = 0.3e-3 
+! Specimen Properties
+specE11 = 20e9
+specE22 = 10e9
+specNu12 = 0.3
+specNu21 = specE22*(specNu12/specE11)
+specG12 = 5e9
+
+! By default the E11 is aligned with the global X direction
+! Rotate 90 degrees to make this aligned with global Y. i.e.
+! 'fibre' direction points upwards. This is fixed and cannot
+! be changed because we can only cut long thin strips of bone
+! aligned with the '1' axis
+specMatAngle = 90
+
+! Angle of the top/bottom edges to the global horizontal
+! This angle can be changed
+specEdgeAngle = 28
+
+! Displacement applied to the top edge
+appUres = 0.83e-04
+! NOTE: '-' sign need to make sign of Ux correct!
+appUx = -appUres*cos(90-specEdgeAngle)
+appUy = appUres*sin(90-specEdgeAngle)
+
+tol = specElemSize/8 
+
+!----------------------------------------------
+! Define Geometry
+L1=specLx*tan(specEdgeAngle)
+
+K,1,0,0
+K,2,0,L1
+K,3,specLx,L1
+K,4,specLx,L1+specLy
+K,5,0,L1+specLy
+K,6,specLx,specLy+L1*2
+L,1,2
+L,2,3
+L,3,4
+L,4,5
+L,5,2
+L,4,6
+L,1,3
+L,5,6
+
+AL,2,5,4,3
+AL,1,2,7
+AL,4,6,8
+
+rad=4e-3
+K,7,0,specLy/2+L1
+CIRCLE,7,rad
+AL,9,10,11,12
+ASBA,1,4
+
+K,12,specLx,specLy/2+L1
+CIRCLE,12,rad
+AL,10,5,15,11
+ASBA,5,1
+
+!----------------------------------------------
+! Define Material Properties 
+MP,EX,1,specE11
+MP,EY,1,specE22
+MP,PRXY,1,specNu12
+MP,GXY,1,specG12
+
+!----------------------------------------------
+! Define Elements
+! use a 6 node element with plane stress
+ET,1,plane183,1,0,3,
+R,1,specLz,
+
+! Create a local coordinate system aligned to the material axis
+LOCAL,11,CART,0,0,0,specMatAngle
+! Assign off-axis co-ords to elements
+ESYS,11
+
+!----------------------------------------------
+! Meshing 
+ESIZE,specElemSize
+MAT,1		! Material 1
+TYPE,1		! Element Type 1
+MSHAPE,0	! Use quads
+MSHKEY,2	! Use mapped mesh if possible
+AMESH,ALL
+EPLOT
+
+!----------------------------------------------
+! Define Loads and Boundary Conditions
+! Apply boundary conditions in global co-ords
+/SOLU
+
+! Assign BCs in the global X-Y reference
+CSYS,0 
+
+! Load the top edge
+LSEL,S,LINE,,8
+NSLL,S,1
+D,ALL,UY,appUy
+D,ALL,UX,appUx
+ALLSEL
+
+!Constrain the bottom edge 
+LSEL,S,LINE,,7
+NSLL,S,1
+D,ALL,ALL,0
+ALLSEL
+
+! determines what is written to DB file
+OUTRES,ALL,ALL	
+SOLVE
+
+/SOLU
+!----------------------------------------------
+! Solution Conditions
+! perform static analysis
+ANTYPE,0
+! use ramped loading
+KBC,0
+! Use automatic time stepping
+AUTOTS,ON
+NSUBST,20,20,1
+
+! Make sure non-linear geometry is off
+NLGEOM,OFF
+! Determines what is written to DB file
+OUTRES,ALL,ALL
+! sets time at the end of the load step
+TIME,20.0
+
+SOLVE
+
+!----------------------------------------------
+! Post Processing	
+/POST1
+
+!-----------------------------------------------------
+! Output Simulation Parameters
+*GET,NCOUNT,NODE,0,COUNT
+*CFOPEN,SimParams_%FILENUM%,txt
+*VWRITE,'specLx  ','specLy  ','specLz  ','specESze','resFx   ','resFy   '
+(A8,' |',A8,' |',A8,' |',A8,' |',A8,' |')
+*VWRITE,specLx,specLy,specLz,specElemSize,resForcex,resForcey
+(E9.3,',',E9.3,',',E9.3,',',E9.3,',',E9.3,',',E9.3)
+*VWRITE,'specE11 ','specE22 ','specNu12','specG12','specAng '
+(A8,' |',A8,' |',A8,' |',A8,' |',A8,' |')
+*VWRITE,specE11,specE22,specNu12,specG12,specAngle
+(E9.3,',',E9.3,',',E9.3,',',E9.3,',',E9.3)
+*CFCLOS
+!-----------------------------------------------------
+
+/GRAPHICS,FULL
+RSYS,0 ! Report results in the global X-Y cartesian system 
+
+SET,FIRST	! Read in initial result set
+! Setup formatting for output files
+/HEADER,OFF,OFF,OFF,OFF,OFF,OFF
+CMSEL,ALL
+*GET,NCOUNT,NODE,0,COUNT
+/PAGE,2*NCOUNT,,2*NCOUNT
+
+ALLSEL
+NSEL,S,LOC,X,-tol,specLx+tol
+NSEL,R,LOC,Y,L1-tol,L1+specLy+tol
+
+ESLN,S,1,ALL
+! Get the node locations and save to file
+/OUTPUT,Node_Locs,txt
+NLIST,ALL, , ,XYZ,NODE,NODE,NODE
+/OUTPUT
+
+! Get nodal total strains
+/OUTPUT,Node_Strain,txt,,
+PRNSOL,EPTO,COMP   
+/OUTPUT	
+
+! Get nodal stress
+/OUTPUT,Node_Stress,txt,,
+PRNSOL,S,COMP   
+/OUTPUT	
+
+! Get the element table
+/OUTPUT,Elem_Table,txt
+ELIST,ALL
+/OUTPUT
+
+! There are no BCs here so no reactions.
+!ALLSEL
+!LSEL,S,LINE,,4
+!NSLL,S,1
+!/OUTPUT,Node_ForceL4,txt,,
+!NFORCE,ALL
+!/OUTPUT
+!ALLSEL
+
+LSEL,S,LINE,,8
+NSLL,S,1
+/OUTPUT,Node_ForceL8,txt,,
+NFORCE,ALL
+/OUTPUT
+ALLSEL
+
+
+FINISH
+				
+

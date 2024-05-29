@@ -1,0 +1,455 @@
+!/////////////////////////////////////////////////////////////////////////
+! FE MODEL - TRANSIENT DYNAMICS OF DWT - No FSI
+! Authors: Lloyd Fletcher
+! Date: 14th Aug. 2022
+! Units: N, m, Pa
+!/////////////////////////////////////////////////////////////////////////
+! Verification model
+
+! These two commands clear out ANSYS and set the working directory
+FINISH
+/CLEAR,NOSTART
+
+useWorkPath = 0
+*IF,useWorkPath,EQ,1,THEN
+/CWD,''
+*ELSE
+/CWD,'D:\UKAEA_Work\FEA - ANSYS Working Directory\LFFE_WCLLTBM_DWTs\MTRANS_DWT1\Data\'
+*ENDIF
+
+Jobname = 'DWT1_TRANSDYN_NOFSI'
+/TITLE,Jobname 
+/FILNAME,Jobname
+! Makes trig functions work in degrees instead of radians 
+*AFUN,DEG   
+pi = 3.141592653589793
+/SHOW,CLOSE 
+/SHOW,
+
+/PREP7 
+!-------------------------------------------------------------------------
+! PARAMETER DEFINITIONS
+/PNUM,KP,0  
+/PNUM,LINE,0
+/PNUM,AREA,0
+
+! Flags
+solveTrans = 1
+nonLinGeomOn = 0
+useDampRatio = 0
+
+! Geometry 
+pipeCantTotLeng = 491e-3
+
+pipeBendCentRad = 45e-3
+pipeBendOutRad = 51.75e-3
+pipeBendInRad = 38.25e-3
+
+pipeUStartWidth = 133.5e-3
+pipeUEndWidth = 183.5e-3
+
+pipeLongSupp = 80e-3
+pipeShortSupp = 10e-3
+
+! Follow outer edge of the pipe
+pipeZStartLx=19.13e-3
+pipeZStartLz=5.12e-3
+pipeZStartRad = pipeBendOutRad
+
+pipeZMidLx=22.42e-3
+pipeZMidLz=12.94e-3
+
+pipeZEndLx=25.88e-3
+pipeZEndLz=6.93e-3
+pipeZEndRad = pipeBendInRad
+
+! Cross Section Geometry
+pipeInnerDiam = 8e-3
+pipeWallThick = 2.75e-3
+
+pipeOuterDiam = pipeInnerDiam+2*pipeWallThick
+pipeMeanDiam = (pipeOuterDiam + pipeInnerDiam)/2
+pipeMeanCirc = pi*pipeMeanDiam
+
+pipeRi = pipeInnerDiam/2
+pipeRo = pipeOuterDiam/2
+pipeRm = pipeMeanDiam/2
+
+! Actually used to make the pipe geom
+pipeRad = pipeRm
+
+! Mesh size variables
+pipeLengElems = 50
+pipeCircElems = 12
+pipeCircSectElems = pipeCircElems/4
+
+pipeElemSize = pipeCantTotLeng/pipeLengElems
+tol = pipeElemSize/8
+ctol = pipeMeanCirc/(100*pipeCircElems)
+
+! Material Properties of EUROFER @ 321degC
+! pipeRho = 7744  ! kg/m^3 - density of EUROFER @ 321deg C  only 
+! Density is modified to account for internal H20 @ 321degC
+pipeRho = 8051
+pipeE = 200.7e9   ! Pa
+pipeNu = 0.3
+pipeDampRatio = 0.1
+
+! Pipe Loads
+numSteps = 1
+pipeIntPressOn = 1
+pipeIntPress = 15e6 ! Pa
+pipeExtPressOn = 0	! Applies 'bending' pressure on top of pipe
+pipeExtPress = 8 ! equivalent to buoyancy force in Pa 
+! NOTE: drag force calcs
+! PbLi @ 1mm/s = 0.0057 Pa
+! PbLi @ 10mm/s = 0.57 Pa
+! PbLi @ 100mm/s = 57 Pa
+
+! Used for testing model
+impForce = 100.0    	! N
+
+! Transient dyanmics loads and timing
+simTime = 0.4		! s
+timeStep = 0.2e-3  	! s
+impTime = 2*timeStep     ! s
+
+!-------------------------------------------------------------------------
+! GEOMETRY
+pipeCentLocZ = pipeUStartWidth/2
+
+K,1,0,0,pipeCentLocZ
+K,2,0,pipeRad,pipeCentLocZ
+K,3,0,0,pipeCentLocZ+pipeRad
+K,4,0,-pipeRad,pipeCentLocZ
+K,5,0,0,pipeCentLocZ-pipeRad
+
+LARC,2,3,1,pipeRad
+LARC,3,4,1,pipeRad
+LARC,4,5,1,pipeRad
+LARC,5,2,1,pipeRad
+
+! Line sizing for radial mesh generation
+LESIZE,ALL,,,pipeCircSectElems
+
+! Pipe path KPs - Long Support
+K11X=pipeLongSupp
+K11Z=pipeUStartWidth/2+pipeRad
+K,11,K11X,0,K11Z
+
+K,101,K11X,0,K11Z+pipeBendInRad
+
+K12X=K11X+pipeZStartLx
+K12Z=K11Z+pipeZStartLz
+K,12,K12X,0,K12Z
+
+K13X = K12X+pipeZMidLx
+K13Z = K12Z+pipeZMidLz
+K,13,K13X,0,K13Z
+
+K14X = K13X+pipeZEndLx
+K14Z = K13Z+pipeZEndLz
+K,14,K14X,0,K14Z
+
+K,102,K14X,0,K14Z-pipeBendOutRad
+
+K15X = pipeCantTotLeng-pipeBendOutRad
+K15Z = K14Z
+K,15,K15X,0,K15Z
+
+K16X = pipeCantTotLeng
+K16Z = K15Z-pipeBendOutRad
+K,16,K16X,0,K16Z
+
+K,103,K16X-pipeBendOutRad,0,K16Z
+
+! Line Creation - Long Support
+L,3,11
+LARC,11,12,101,pipeBendInRad
+L,12,13
+LARC,13,14,102,pipeBendOutRad
+L,14,15
+LARC,15,16,103,pipeBendOutRad
+
+! Pipe Path KPs - Short Support
+K20X = pipeLongSupp-pipeShortSupp
+K20Z = -pipeUStartWidth/2-pipeRad
+K,20,K20X,0,K20Z
+
+K21X = K20X+pipeShortSupp
+K21Z = K20Z
+K,21,K21X,0,K21Z
+
+K22X = K21X+pipeZStartLx
+K22Z = K21Z-pipeZStartLz
+K,22,K22X,0,K22Z
+
+K,201,K21X,0,K21Z-pipeBendInRad
+
+K23X = K22X+pipeZMidLx
+K23Z = K22Z-pipeZMidLz
+K,23,K23X,0,K23Z
+
+K24X = K23X+pipeZEndLx
+K24Z = K23Z-pipeZEndLz
+K,24,K24X,0,K24Z
+
+K,202,K24X,0,K24Z+pipeBendOutRad
+
+K25X = pipeCantTotLeng-pipeBendOutRad
+K25Z = K24Z
+K,25,K25X,0,K25Z
+
+K26X = pipeCantTotLeng
+K26Z = K25Z+pipeBendOutRad
+K,26,K26X,0,K26Z
+
+K,203,K26X-pipeBendOutRad,0,K26Z
+
+! Line Creation - Short Support
+L,20,21
+LARC,21,22,201,pipeBendInRad
+L,22,23
+LARC,23,24,202,pipeBendOutRad
+L,24,25
+LARC,25,26,203,pipeBendOutRad
+L,16,26
+
+! Line elemen sizing for the pipe path
+LSEL,U,LINE,,1,4
+LESIZE,ALL,pipeElemSize
+ALLSEL
+
+! Drags circ lines to create a hollow tube
+ADRAG,1,2,3,4,,,5,6,7,8,9,10
+ADRAG,58,61,63,65,,,17,16,15,14,13,12
+ADRAG,106,109,111,113,,,,11
+
+!-------------------------------------------------------------------------
+! MAT PROPS
+MP,DENS,1,pipeRho
+MP,EX,1,pipeE
+MP,NUXY,1,pipeNu
+
+!-------------------------------------------------------------------------
+! ELEMENT DEF
+ET,1,SHELL281 ! SHELL281 WITH SHELL OPTION
+SECT,1,SHELL
+SECD,pipeWallThick,1 ! THICK,MATID,THETA,NUMPTS
+
+!-------------------------------------------------------------------------
+! MESHING
+AMESH,ALL
+
+!-------------------------------------------------------------------------
+! BOUNDARY CONDITIONS
+/SOLU
+
+! Fix pipe ends
+ALLSEL
+NSEL,S,LOC,X,-tol,tol
+D,ALL,ALL,0
+ALLSEL
+
+ALLSEL
+NSEL,S,LOC,Z,-pipeUStartWidth/2-pipeRad-tol,-pipeUStartWidth/2+pipeRad+tol
+NSEL,R,LOC,X,pipeLongSupp-pipeShortSupp-tol,pipeLongSupp-pipeShortSupp+tol
+D,ALL,ALL,0
+ALLSEL
+
+ALLSEL
+ESEL,S,TYPE,,1
+NSLE,S
+NSEL,R,LOC,X,pipeCantTotLeng-tol,pipeCantTotLengtol
+NSEL,R,LOC,Z,-tolC,tolC
+NSEL,R,LOC,Y,pipeRad-tolC,pipeRad+tolC
+*GET,endNode,NODE,0,NUM,MAX
+ALLSEL
+
+/PSF,DEFA, ,1,0,1   
+/PBF,DEFA, ,1
+/PBC,ALL, ,1
+/PSF,PRES,NORM,2,1,1
+/VIEW,1,1,2,3   
+/ANG,1  
+EPLOT
+
+!-------------------------------------------------------------------------
+! SOLUTION - TRANSIENT DYNAMICS
+/SOLU
+*IF,solveTrans,EQ,1,THEN
+    ANTYPE,TRANSIENT
+    !ACEL,0.0,9.81,0.0
+    TRNOPT,FULL,,,,,HHT ! Can also use HHT integration
+	! The amplitude decay factor is recommended to be set as  (Hughes([166]))
+	TINTP,0.05 ! Sets transient integration parameter 'GAMMA' which gives damping
+	
+	*IF,useDampRatio,EQ,1,THEN
+		DMPRAT,pipeDampRatio
+	*ENDIF
+    
+	DELTIM,timeStep
+    KBC,1 ! STEP BCs, 0=linear , 1=step
+    
+    ! First solve is static
+	OUTPR,ALL
+    OUTRES,ALL,ALL
+	
+	!TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+    ! 1) STATIC SOLVE - INIT CONDS 
+	TIMINT,OFF
+
+    !TIME,impTime/2
+	!ALLSEL
+	!ESEL,S,TYPE,,1
+	!NSLE,S
+	!SF,ALL,PRES,pipeIntPress
+	!ALLSEL
+	!SOLVE
+	
+	TIME,impTime
+    F,endNode,FY,impForce
+    SOLVE
+    
+	!TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+    ! 2) TIME INTEGRATED SOLVE
+    TIMINT,ON
+    TIME,simTime
+    F,endNode,FY,0.0
+	
+    SOLVE
+	!TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+*ENDIF
+FINISH
+
+!-------------------------------------------------------------------------
+! POST-PROCESSING - POST26
+*IF,solveTrans,EQ,1,THEN
+/POST26
+KEEP,ON
+
+NSOL,2,endNode,u,y,endNodeUy ! store uY displacements
+STORE,MERGE
+*GET,UyMaxVal,VARI,2,EXTREM,VMAX
+*GET,UyMaxTime,VARI,2,EXTREM,TMAX
+
+! Convert nodal solution variable to an array
+*GET,UySize,VARI,,NSETS
+*DIM,UyArr,ARRAY,UySize
+VGET,UyArr(1),2
+
+! APDL FFT REFERENCE
+! https://ansyshelp.ansys.com/account/secured?returnurl=/Views/Secured/corp/v212/en/ans_cmd/Hlp_C_FFT.html
+! Convert nodal solution array to a vector for the FFT
+*VEC,UyVec,D,ALLOC,UySize,1
+*DO,ii,1,UySize
+    UyVec(ii) = UyArr(ii)
+*ENDDO
+
+! Create complex vector to store FFT
+*VEC,UyFFT,Z,ALLOC,UySize,1
+
+FFTMethod = 0
+*IF,FFTMethod,EQ,1,THEN
+    *FFT,FORW,UyVec,UyFFT,,,FULL
+*ELSE
+    *FFT,FORW,UyVec,UyFFT,,,PART
+*ENDIF
+
+! Separate real and imaginary parts of the FFT
+*VEC,UyFFTI,Z,COPY,UyFFT
+*AXPY,,,,0.,-1.,UyFFTI
+*VEC,UyI,D,COPY,UyFFTI
+*VEC,UyR,D,COPY,UyFFT
+
+! Compute FFT modulus
+*EXPORT,UyR,APDL,fftr
+*EXPORT,UyI,APDL,ffti
+
+UyFFTSize = UyR_rowDim
+
+*IF,FFTmethod,eq,0,then
+  UyFFTSize = UyFFTSize/2
+*ENDIF
+
+*DIM,tArr,ARRAY,UyFFTSize
+*DIM,fArr,TABLE,UyFFTSize
+*DIM,ind,TABLE,UyFFTSize
+*DIM,modfft,ARRAY,UyFFTSize
+*DIM,modfftdisp,TABLE,UyFFTSize
+
+! See Matlab/Python FFT examples below
+fMax = 1/(2*timeStep)
+fInc = fMax/(UyFFTSize-1)
+
+*DO,ii,1,UyFFTSize
+  ind(ii)   = ii
+  tArr(ii) = timeStep*(ii-1)
+  fArr(ii) = fInc*(ii-1)
+  modfft(ii)= sqrt( fftr(ii)*fftr(ii) + ffti(ii)*ffti(ii) )
+  modfftdisp(ii) = modfft(ii)
+*ENDDO
+
+! Plots the time history of the nodal displacement
+!/GRID,1 ! turn grid on
+!/AXLAB,y,Disp [m] ! y-axis label disp
+!/AXLAB,x,Time [s]
+!PLVAR,2 ! display variables 2 and 3
+!/XRANGE,0.0,maxUyTime
+
+/GRID,1 ! turn grid on
+/AXLAB,X,Freq. [Hz]
+/AXLAB,Y,Amp. [-]
+*VPLOT,fArr,modfftdisp
+/XRANGE,32.0,50.0
+/SHOW
+
+!NOTE: nat freq 1 should be 41.6Hz for DWT1
+
+*ENDIF
+
+!-------------------------------------------------------------------------
+! POST-PROCESSING - POST1
+post1On = 0
+
+*IF,post1On,EQ,1,THEN
+/POST1
+ALLSEL
+ESEL,S,TYPE,,1
+NSLE,S
+EPLOT
+
+SET,FIRST
+SET,NEXT
+PLNSOL, U,SUM,0,1.0
+FINISH
+
+*ENDIF
+
+!-------------------------------------------------------------------------
+! MATLAB FFT EXAMPLE
+!gridFFT = fft(inputGrid,[],2);
+!P2 = abs(gridFFT/size(gridFFT,2));
+!P1 = P2(:,1:size(gridFFT,2)/2+1);
+!P1(2:end-1,:) = 2*P1(2:end-1,:);
+!P1 = max(P1,[],1);
+!f = 1*(0:(size(gridFFT,2)/2))/size(gridFFT,2);
+
+! PYTHON
+!import numpy as np
+!import matplotlib.pyplot as plt
+!import scipy.fftpack
+
+!N = 600
+!T = 1.0 / 800.0
+!x = np.linspace(0.0, N*T, N)
+!y = np.sin(50.0 * 2.0*np.pi*x) + 0.5*np.sin(80.0 * 2.0*np.pi*x)
+!yf = scipy.fftpack.fft(y)
+!xf = np.linspace(0.0, 1.0/(2.0*T), N//2)
+
+!fig, ax = plt.subplots()
+!ax.plot(xf, 2.0/N * np.abs(yf[:N//2]))
+!ax.set(xlim=(0, 100))
+!plt.show()
+
+

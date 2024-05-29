@@ -1,0 +1,35 @@
+FINISH
+/CLEAR,NOSTART
+/CWD,'C:\Users\Lloyd\Documents\ANSYS_WorkingDirectory\Model_ComplianceSENB'
+*AFUN,DEG
+! initial crack length = 0.5*W = 6mm
+! actual crack length = 0.7*W = 8.4mm
+! crack extension is 0.2*W = 2.4mm
+
+!/////////////////////////////////////////////////
+! Mesh Refinement Loop 
+! Variable Ranges
+*DIM,CLVEC,ARRAY,6
+CLVEC(1)=0.5,0.55,0.6,0.65,0.7,0.75
+
+!*DIM,MATVEC,ARRAY,3
+!MATVEC(1)=1,3,4
+MESHSIZE = 0.1
+
+I = 1
+*DO,CLI,1,6
+!*DO,MI,1,1
+*DO,X,1,7
+	CL = CLVEC(CLI)
+	!MATMOD = MATVEC(MI)
+	REFITER = (X-1)
+	
+	PARSAV,ALL,MRCircLoopParams
+	SBF_MRCirc,I,CL,MESHSIZE,REFITER
+	PARRES,NEW,MRCircLoopParams
+	I = I+1
+
+*ENDDO
+!*ENDDO
+*ENDDO
+

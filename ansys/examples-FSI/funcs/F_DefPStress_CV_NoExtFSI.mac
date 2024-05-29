@@ -1,0 +1,32 @@
+/SOLU
+
+!-------------------------------------------------------------------------
+! Pre-stress definition for modal analysis
+
+! Apply pipe internal pressure - PWR H20
+*IF,pipeIntPressOn,EQ,1,THEN
+	! Only apply pressure to pipe elements (type 1)
+	ALLSEL
+	ESEL,S,TYPE,,1
+	NSLE,S
+	
+	SF,ALL,PRESS,pipeIntPress
+	ALLSEL
+*ENDIF
+
+! Apply pipe external pressure - Flowing PbLi
+*IF,pipeExtPressOn,EQ,1,THEN
+	ALLSEL
+	! Only apply pressure to pipe elements (type 1)
+	ALLSEL
+	ESEL,S,TYPE,,1
+	ESEL,R,CENT,Y,0,pipeRad
+	NSLE,S
+	
+	SFCONTROL,2,,0,1,0
+	SFE,ALL,2,PRES,,pipeExtPress
+	SFCONTROL,0,
+	ALLSEL
+*ENDIF
+
+FINISH

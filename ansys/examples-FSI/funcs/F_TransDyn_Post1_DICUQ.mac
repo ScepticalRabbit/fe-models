@@ -1,0 +1,47 @@
+! Set to data output path
+/CWD,%PATH_A%%PATH_B%%PATH_C%%PATH_D%%PATH_E%%PATH_DATA%
+
+!-------------------------------------------------------------------------
+! POST-PROCESSING - SHOW PRESSURE BCs
+*IF,solveTrans,EQ,1,THEN
+*IF,post1DICUQ,EQ,1,THEN
+/POST1
+
+/GRAPHICS,FULL
+SET,FIRST	! Read in initial result set
+RSYS,0 ! Report results in the global cartesian system 
+
+! SPECIMEN ONLY ELEMENT TABLE
+ALLSEL
+ESEL,S,TYPE,,1
+NSLE,S
+! Get the node locations and save to file
+/OUTPUT,DICUQ_Node_Locs,txt
+NLIST,ALL, , ,XYZ,NODE,NODE,NODE
+/OUTPUT
+! Get the element table
+/OUTPUT,DICUQ_Elem_Table,txt
+ELIST,ALL
+/OUTPUT
+
+! Loop through each time step and save to file
+SET,FIRST 	! Read in initial result set
+*DO,SS,1,outNumSteps
+    stepStr = CHRVAL(SS)
+    
+    !---------------------------------------------
+    ! SELECT SAMPLE ONLY - Nodal Disp to *.txt
+    ALLSEL
+    ESEL,S,TYPE,,1
+    NSLE,S
+    ! Get nodal displacement
+    /OUTPUT,Node_Disp_%stepStr%,duq,,
+    PRNSOL,U,COMP   
+    /OUTPUT
+    
+    ALLSEL	
+    SET,NEXT
+*ENDDO
+*ENDIF
+*ENDIF
+

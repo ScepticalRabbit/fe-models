@@ -1,0 +1,32 @@
+/CWD,%PATH_A%%PATH_B%%PATH_C%%PATH_D%%PATH_E%%PATH_DATA%
+
+*IF,incPStress,EQ,1,THEN
+ANTYPE,STATIC,RESTART,,,PERTURB 
+PERTURB,MODAL,,,INERKEEP
+SOLVE,ELFORM 
+checkSolveMAPStress = 'on'
+*ELSE
+ANTYPE,MODAL
+checkSolveMAPStress = 'off'
+*ENDIF
+
+! Damping options
+ALPHAD,dampAlpha
+BETAD,dampBeta
+
+! Modal solve options
+*IF,useDampSolve,EQ,1,THEN
+MODOPT,DAMP,numModes
+checkSolveDamp = 'on'
+*ELSE
+MODOPT,LANB,numModes
+checkSolveDamp = 'off'
+*ENDIF
+MXPAND,numModes,,,YES
+OUTRES,ALL,ALL
+
+! Solve model
+PARSAV,SCALAR,SimParams,txt
+SOLVE
+
+!/CWD,%PATH_A%%PATH_B%%PATH_C%%PATH_D%%PATH_E%%PATH_FUNC%

@@ -1,0 +1,22 @@
+/PREP7
+
+!-------------------------------------------------------------------------
+! Material Properties of Copper Validation Pipe
+! Assumed to be OFHC copper based on ITER SDC-IC
+pipeRho = 8960
+pipeE = 117e9   ! Pa
+pipeNu = 0.3
+
+!-------------------------------------------------------------------------
+! MAT PROPS
+MP,DENS,1,pipeRho
+MP,EX,1,pipeE
+MP,NUXY,1,pipeNu
+
+!-------------------------------------------------------------------------
+! ELEMENT DEF
+ET,1,SHELL281 ! SHELL281 WITH SHELL OPTION
+SECT,1,SHELL
+SECD,pipeWallThick,1 ! THICK,MATID,THETA,NUMPTS
+
+FINISH

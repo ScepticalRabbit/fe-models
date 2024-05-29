@@ -1,0 +1,662 @@
+!/////////////////////////////////////////////////////
+! FRACTURE MODEL DATA
+! File Type: stand alone 
+! Specimen Type: C(T)
+! Scenario: tied node or spring based ligament bridge
+! Units: N, mm, MPa
+!/////////////////////////////////////////////////////
+
+FINISH
+/CLEAR,NOSTART
+/CWD,'C:\Users\Lloyd\Documents\ANSYS_WorkingDirectory\Model_LigamentBridge'
+/PREP7
+
+/PNUM,KP,0
+/PNUM,LINE,0
+/PNUM,AREA,0
+
+!/////////////////////////////////////////////
+W = 12		! Characteristic Length
+!//////////////////////////////////////////////
+
+!----------------------------------------------
+! Define ARGS
+ITER = ARG1
+CLFACTOR = ARG2			! cracklength = clfactor*W
+A0 = 0.5*W
+CEXT = CLFACTOR*W - A0	! crack extension from initial crack length
+
+!----------------------------------------------
+! Define Ligament Bridge Parameters
+LBXPC = ARG3			! centre x coord of lig bridge
+LBLPC = ARG4				! percent crack length bridge covers
+BK = ARG5					! bridge spring stiffness 
+LBL = LBLPC*CEXT			! length of ligament bridge
+LBX = LBXPC*CEXT
+
+!----------------------------------------------
+! Define Misc Variables
+! Variables that can be args
+DEL = 0.2			! disp of top pin 
+MESHSIZE = 0.2		! Size of mesh before refinement		
+REFITER = 2			! number of refinement iterations
+
+! default material  = aluminium
+! 1 = iso bone, 2 = iso plastic bone
+! 3 = ortho bone (long frac), 4 = ortho bone (trans frac)
+BONEPROPS = ARG6		! Use bone material props
+	
+!----------------------------------------------
+! Define Geometry Variables
+CL = CLFACTOR*W		! Crack length
+CL0 = 0.49*W
+
+NL = 0.48*W		! Notch length\
+!NW = 0.063*W/2	! Half Notch Width
+NW = 0.05*W/2
+WL = NW/(1/sqrt(3))	! Wedge Length
+SNL = 0.01*W	! Scalpel Notch Length
+PR = 0.25*W/2	! Pin Radius
+PMR = 0.35*W/2	! Hole mesh square size
+PL = 0.275*W	! Pin Y Location
+
+CF = 0.04*W		! concentration of mesh in front of crack
+CB = 0.04*W		! concentration of mesh behind crack
+CW = 0.04*W		! concentration width
+
+CLTEST = CL - CL0
+CBTEST = CB+0.025*W
+
+*IF,CBTEST,GT,CLTEST,THEN
+	NFLAG = 1
+*ELSE
+	NFLAG = 0
+*ENDIF
+
+!----------------------------------------------
+! Define Key Points
+K,1,-0.25*W,0.6*W
+K,2,-PMR,0.6*W
+K,3,PMR,0.6*W
+K,4,NL-WL,0.6*W
+K,5,NL+SNL,0.6*W
+K,6,CL,0.6*W
+K,7,CL+CF,0.6*W
+K,8,W,0.6*W
+K,9,-PMR,PL+PMR
+K,10,PMR,PL+PMR
+K,11,-PMR,PL-PMR
+K,12,PMR,PL-PMR
+K,13,NL-WL,CW
+K,14,NL+SNL,CW
+K,15,CL,CW
+K,16,CL+CF,CW
+K,17,-0.25*W,NW
+K,18,-PMR,NW
+K,19,PMR,NW
+K,20,NL-WL,NW
+K,21,NL,0
+K,22,NL+SNL,0
+K,23,CL,0
+K,24,-0.25*W,-NW
+K,25,-PMR,-NW
+K,26,PMR,-NW
+K,27,NL-WL,-NW
+K,28,NL,0
+K,29,NL+SNL,0
+K,30,NL-WL,-CW
+K,31,NL+SNL,-CW
+K,32,CL,-CW
+K,33,CL+CF,-CW
+K,34,-PMR,-PL+PMR
+K,35,PMR,-PL+PMR
+K,36,-PMR,-PL-PMR
+K,37,PMR,-PL-PMR
+K,38,-0.25*W,-0.6*W
+K,39,-PMR,-0.6*W
+K,40,PMR,-0.6*W
+K,41,NL-WL,-0.6*W
+K,42,NL+SNL,-0.6*W
+K,43,CL,-0.6*W
+K,44,CL+CF,-0.6*W
+K,45,W,-0.6*W
+K,46,0,-0.275*W
+K,47,0,0.275*W
+K,48,0,0
+K,49,CL+CF,0
+
+*IF,NFLAG,EQ,0,THEN
+	K,50,CL-CB,0.6*W
+	K,51,CL-CB,CW
+	K,52,CL-CB,0
+	K,53,CL-CB,0
+	K,54,CL-CB,-CW
+	K,55,CL-CB,-0.6*W
+*ENDIF
+
+!----------------------------------------------
+! Define Lines
+L,1,2
+L,2,3
+L,3,4
+L,4,5
+!L,5,6
+L,6,7
+L,7,8
+L,9,10
+L,11,12
+L,13,14
+!L,14,15
+L,15,16
+L,17,18
+L,18,19
+L,19,20
+L,20,21
+L,21,22
+!L,22,23
+!L,23,29
+L,24,25
+L,25,26
+L,26,27
+L,27,28
+L,28,29
+!L,29,23
+L,30,31
+!L,31,32
+L,32,33
+L,34,35
+L,36,37
+L,38,39
+L,39,40
+L,40,41
+L,41,42
+!L,42,43
+L,43,44
+L,44,45
+
+! CREATE VERTICAL LINES
+L,1,17
+L,24,38
+L,2,9
+L,9,11
+L,11,18
+L,25,34
+L,34,36
+L,36,39
+L,3,10
+L,10,12
+L,12,19
+L,26,35
+L,35,37
+L,37,40
+L,4,13
+L,13,20
+L,27,30
+L,30,41
+L,5,14
+L,14,22
+L,29,31
+L,31,42
+L,6,15
+L,15,23
+L,23,32
+L,32,43
+L,7,16
+L,16,49
+L,49,33
+L,33,44
+L,8,45
+L,23,49
+
+! Create Hole and Pin Geometry
+CIRCLE,47,PR
+CIRCLE,47,PR
+
+CIRCLE,46,PR
+CIRCLE,46,PR
+
+! Create conditional lines
+*IF,NFLAG,EQ,1,THEN
+	L,5,6
+	L,14,15
+	L,22,23
+	L,29,23
+	L,31,32
+	L,42,43
+*ELSE
+	L,5,50
+	L,14,51
+	L,22,52
+	L,29,53
+	L,31,54
+	L,42,55
+	
+	L,6,50
+	L,15,51
+	L,23,52
+	L,23,53
+	L,32,54
+	L,43,55
+	
+	L,50,51
+	L,51,52
+	L,53,54
+	L,54,55
+*ENDIF
+
+!----------------------------------------------
+! Create Areas
+!////////////////////////////
+! PIN AREAS ARE 1 AND 2
+AL,63,64,65,66
+AL,71,72,73,74
+!////////////////////////////
+AL,1,33,34,35,11,31
+AL,16,36,37,38,25,32
+AL,2,39,7,33
+AL,24,44,26,38
+AL,7,40,8,34,67,68,69,70
+AL,23,43,24,37,75,76,77,78
+AL,8,41,12,35
+AL,17,42,23,36
+AL,3,45,46,13,41,40,39
+AL,18,47,48,27,44,43,42
+AL,4,49,9,45
+AL,21,52,28,48
+AL,9,50,15,14,46
+AL,20,51,21,47,19
+AL,5,57,53,10
+AL,22,60,56,29
+AL,10,58,62,54
+AL,62,59,22,55
+AL,6,61,30,60,59,58,57
+
+*IF,NFLAG,EQ,1,THEN
+	AL,79,53,49,80
+	AL,83,56,52,84
+	AL,80,54,81,50
+	AL,82,55,83,51
+*ELSE
+	AL,79,91,80,49
+	AL,83,94,84,52
+	AL,80,92,81,50
+	AL,82,93,83,51
+	AL,85,53,86,91
+	AL,89,56,94,90
+	AL,86,54,87,92
+	AL,88,55,89,93
+*ENDIF
+
+!----------------------------------------------
+! Material Properties
+! BONE PROPERTIES
+*IF,BONEPROPS,EQ,1,THEN
+	! ISO BONE
+	MP,EX,1,23100
+	MP,PRXY,1,0.325
+*ELSEIF,BONEPROPS,EQ,2,THEN
+	! ISO PLASTIC BONE
+	MP,EX,1,23100
+	MP,PRXY,1,0.325
+	TB,BISO,1
+	TBDATA,1,132 ! Yield stress (MPa)
+	TBDATA,2,693 ! Tangent modulus (MPa)	
+*ELSEIF,BONEPROPS,EQ,3,THEN
+	! ORTHO BONE (LONG FRAC)
+	MP,EX,1,23100
+	MP,EY,1,10400
+	MP,EZ,1,10400
+	
+	MP,GXY,1,3600
+	MP,GYZ,1,3600
+	MP,GXZ,1,3600
+	
+	MP,PRXY,1,0.29
+	MP,PRYZ,1,0.51
+	MP,PRXZ,1,0.29
+*ELSEIF,BONEPROPS,EQ,4,THEN
+	! ORTHO BONE (TRANS FRAC)
+	! PLASTIC
+	MP,EX,1,10400
+	MP,EY,1,23100
+	MP,EZ,1,10400
+	
+	MP,GXY,1,3600
+	MP,GYZ,1,3600
+	MP,GXZ,1,3600
+	
+	MP,PRXY,1,0.29
+	MP,PRYZ,1,0.29
+	MP,PRXZ,1,0.51
+*ELSE
+	MP,EX,1,70000
+	MP,PRXY,1,0.33
+*ENDIF
+
+! ANVIL PROPERTIES
+MP,EX,2,200000
+MP,PRXY,2,0.3
+
+! GENERAL ELEMENTS
+! use a 8 node quad element with plane stress
+ET,1,plane183,0,,0
+
+!----------------------------------------------
+! Meshing 
+
+P1 = MESHSIZE
+P2 = 1.5*P1
+
+LSEL,S,,,63,66
+LSEL,A,,,71,74
+LESIZE,ALL,P2
+ALLSEL
+
+! Mesh the Pins
+MSHAPE,1
+MSHKEY,1
+MAT,2
+AMESH,1
+AMESH,2
+
+MSHAPE,0
+MSHKEY,1
+MAT,1
+
+ALLSEL
+LSEL,U,,,63,66
+LSEL,U,,,71,74
+LESIZE,ALL,P1
+ALLSEL
+
+AMAP,3,1,2,17,18 
+AMAP,4,24,25,38,39
+AMAP,5,2,3,9,10
+AMAP,6,36,37,39,40
+AMAP,9,11,12,18,19
+AMAP,10,25,26,34,35
+AMAP,11,3,4,20,19
+AMAP,12,26,27,40,41
+AMAP,13,4,5,13,14
+AMAP,14,30,31,41,42
+AMAP,17,6,7,15,16
+AMAP,18,32,33,43,44
+AMAP,19,15,16,23,49
+AMAP,20,23,49,32,33
+AMAP,21,7,8,44,45
+
+*IF,NFLAG,EQ,1,THEN
+	AMAP,22,5,6,14,15
+	AMAP,23,31,32,42,43
+	AMAP,24,14,15,22,23
+	AMAP,25,29,23,31,32
+*ELSE
+	AMAP,22,5,50,14,51
+	AMAP,23,31,54,42,55
+	AMAP,24,14,51,52,22
+	AMAP,25,29,53,54,31
+	
+	AMAP,26,51,15,50,6
+	AMAP,27,54,32,55,43
+	AMAP,28,51,15,23,52
+	AMAP,29,53,23,32,54
+*ENDIF
+
+! Mesh Wedge Notch
+LCCAT,9,50
+LCCAT,21,51
+MSHKEY,2
+ASEL,S,,,15,16
+AMESH,ALL
+ALLSEL
+
+! Mesh Around Pins
+MSHKEY,0
+MSHAPE,1
+ASEL,S,,,7,8
+AMESH,ALL
+ALLSEL
+MSHAPE,1
+MSHKEY,2
+
+! Refine Crack Path Mesh
+!K,43,CL,DEFH
+TIPX = CL
+TIPY = 0
+*IF,REFITER,GT,0,THEN
+	RDY = CF/REFITER
+	RDX = CF/REFITER
+	*DO,I,1,REFITER
+		NSEL,S,LOC,Y,DEFH-CB+(I-1)*RDY,DEFH+CF-(I-1)*RDY
+		NSEL,R,LOC,X,NL,CL+CF-(I-1)*RDX
+		ESLN
+		EREFINE,ALL,,,1,0,OFF,ON
+		ALLSEL
+	*ENDDO
+*ENDIF
+
+!---------------------------------------------
+! Define contact elements
+MP,MU,4,0 ! friction for contact = 0
+ET,3,TARGE169
+ET,4,CONTA172
+R,4,,,1,1,,1
+KEYOPT,4,2,0
+KEYOPT,4,5,1
+KEYOPT,4,9,1
+KEYOPT,4,10,2
+KEYOPT,4,12,0
+
+MP,MU,6,0 ! friction for contact = 0
+ET,5,TARGE169
+ET,6,CONTA172
+R,6,,,1,1,,-1
+KEYOPT,6,2,0
+KEYOPT,6,5,1
+KEYOPT,6,9,1
+KEYOPT,6,10,2
+KEYOPT,6,12,0
+
+! DEFINE CONTACT PAIR MESH
+! NOTE:
+! Top Pin, L = 63-66
+! Top Hole, L = 67-70
+! Bottom Pin, L = 71-74
+! Bottom Hole, L = 75-78  
+
+! Top hole
+LSEL,S,LINE,,67,70
+NSLL,S,1
+TYPE,4
+MAT,4
+REAL,4
+ESURF
+ALLSEL
+
+! Top Pin
+LSEL,S,LINE,,63,66
+NSLL,S,1
+TYPE,3
+ESURF
+ALLSEL
+
+! Bottom Hole
+LSEL,S,LINE,,75,78
+NSLL,S,1
+TYPE,6
+MAT,6
+REAL,6
+ESURF
+ALLSEL
+
+! Bottom Pin
+LSEL,S,LINE,,71,74
+NSLL,S,1
+TYPE,5
+ESURF
+ALLSEL
+
+!---------------------------------------------
+! INELEGANT CODE TO GET ELEMENT SIZE
+CTIPELEM = 0
+SELCOUNT = 0
+MIN_EL = 0
+EAREA = 0
+ECOUNT = 0
+NSEL,S,LOC,Y,TIPY-RDX,TIPY+RDX
+NSEL,R,LOC,X,CL,CL+RDX/2
+ESLN
+*GET,SELCOUNT,ELEM,0,COUNT
+*GET,CTIPELEM,ELEM,0,NUM,MAX
+*GET,EAREA,ELEM,CTIPELEM,AREA
+*GET,ECOUNT,ELEM,0,NUM,MAXD
+MIN_EL = SQRT(EAREA)
+ALLSEL
+
+!----------------------------------------------
+! Create the ligament bridge by joining nodes
+KCOUNT = -1
+
+! define spring elements
+ET,8,COMBIN14
+R,8,BK,0,0,,,0,0
+KEYOPT,8,1,0
+KEYOPT,8,2,2
+TYPE,8
+REAL,8
+
+CRACK_ELEM_COUNT = NINT(CEXT/MIN_EL)
+CHECK_EL = CEXT/CRACK_ELEM_COUNT
+BLOC_NUM = NINT(CRACK_ELEM_COUNT*LBXPC)
+BLEN_NUM = NINT(CRACK_ELEM_COUNT*LBLPC/2)
+BLOC = A0+CHECK_EL*BLOC_NUM
+
+! GET THE CENTRAL NODES X POSITION
+CENT_BRIDGE_NODE = NODE(BLOC,0,0)
+TRUE_LOC = -1
+*GET,TRUE_LOC,NODE,CENT_BRIDGE_NODE,LOC,X
+
+! GET THE NODES IN +'VE X 
+INCX = CHECK_EL
+TEMPX = TRUE_LOC
+*DO,J,1,BLEN_NUM
+	TEMPNODE = NODE(TEMPX+INCX,0,0)
+	*GET,TEMPX,NODE,TEMPNODE,LOC,X
+*ENDDO
+XP_LOC = TEMPX
+
+! GET THE NODES IN -'VE X 
+INCX = CHECK_EL
+TEMPX = TRUE_LOC
+*DO,J,1,BLEN_NUM
+	TEMPNODE = NODE(TEMPX-INCX,0,0)
+	*GET,TEMPX,NODE,TEMPNODE,LOC,X
+*ENDDO
+XN_LOC = TEMPX
+
+! SELECT NEW SET BASED ON NODE POSITION
+NSEL,S,LOC,Y,0
+NSEL,R,LOC,X,XN_LOC,XP_LOC
+EINTF
+ALLSEL
+
+ESEL,S,TYPE,,8
+*GET,KCOUNT,ELEM,0,COUNT
+ALLSEL
+
+!----------------------------------------------
+! Define Loads and Boundary Conditions
+/SOLU
+ASEL,S,,,2
+NSLA,S,1
+D,ALL,UY,0
+D,ALL,UX,0
+ALLSEL
+
+ASEL,S,,,1
+NSLA,S,1
+D,ALL,UX,0
+ALLSEL
+
+RNODE = -1
+NSEL,S,LOC,X,0
+NSEL,R,LOC,Y,0.275*W
+D,ALL,UY,DEL
+*GET,RNODE,NODE,0,NUM,MAX
+ALLSEL
+
+!----------------------------------------------
+! Set up J-integral calc 
+! Define Crack Tip Coords
+! Crack tip KP = 23
+! Crack Ext KP = 49
+! Crack Normal KP = 16 
+CSKP,11,0,23,49,16,1,1
+CSYS,11
+
+KSEL,S,,,23
+NSLK
+CM,CRACK_TIP_NODE_CM,NODE
+ALLSEL
+
+CINT,NEW,1
+CINT,CTNC,CRACK_TIP_NODE_CM
+CINT,NORM,11,2
+CINT,SYMM,OFF
+CINT,NCON,6
+OUTRES,CINT,10 
+
+!----------------------------------------------
+! Solution Conditions
+! perform static analysis
+ANTYPE,0
+! use ramped loading
+KBC,0
+! Use automatic time stepping
+AUTOTS,ON
+! p1: number of substeps, p2: max substeps
+! p3: min substeps
+! ANSYS VM CT Jpl: NSUBST,10,1000,10
+NSUBST,20,200,10
+! non-linear geometry
+*IF,BONEPROPS,EQ,2,THEN
+	NLGEOM,ON
+*ELSE
+	NLGEOM,OFF
+*ENDIF
+! determines what is written to DB file
+OUTRES,ALL,ALL
+! sets time at the end of the load step
+TIME,1.0
+
+SOLVE
+
+!----------------------------------------------
+! Post Processing	
+/POST1
+J=0
+PRCINT,1,CTN_CM,JINT ! PRINT K VALUES
+*GET,J,CINT,1,CTIP,NODE(0,0,0),,5,,JINT ! GET J VALUE FOR CRACK TIP NODE	
+
+ALLSEL
+CSYS,0
+FYR = 0
+*GET,FYR,NODE,RNODE,RF,FY
+ALLSEL	
+
+!---------------------------------------------
+! Store data to file for current crack length inc, J, del, F
+! THIS CODE MUST BE ALIGNED LEFT
+FILENUM = CHRVAL(ITER)
+FCL = CHRVAL(CLFACTOR*100)
+FILEMAT = CHRVAL(BONEPROPS)
+FILEP = CHRVAL(LBXPC*100) 
+FILEL = CHRVAL(LBLPC*100)
+FILEK = CHRVAL(BK)
+
+*CFOPEN,JBRIDGE_%FILENUM%_%FILEMAT%_%FCL%_%FILEP%_%FILEL%_%FILEK%,csv
+*VWRITE,W,CLFACTOR,BONEPROPS,LBXPC,LBLPC,BK,KCOUNT,DEL,FYR,J
+(F7.3,',',F7.3,',',F7.3,',',F7.3,',',F7.3,',',F7.3,',',F7.3,',',F10.5,',',F10.5,',',F10.5)
+*CFCLOS		
+
+!---------------------------------------------

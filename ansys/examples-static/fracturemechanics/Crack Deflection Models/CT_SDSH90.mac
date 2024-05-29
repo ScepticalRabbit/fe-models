@@ -1,0 +1,645 @@
+!/////////////////////////////////////////////////////
+! FRACTURE MODEL DATA
+! File Type: stand alone
+! Specimen Type: C(T)
+! Scenario: crack deflection, single def at 90deg the straight
+! Units: N, mm, MPa
+!/////////////////////////////////////////////////////
+
+FINISH
+/CLEAR,NOSTART
+/CWD,'C:\Users\Lloyd\Documents\ANSYS_WorkingDirectory\Model_CrackDef90'
+/PREP7
+
+/PNUM,KP,1
+/PNUM,LINE,1
+/PNUM,AREA,1
+
+!/////////////////////////////////////////////
+W = 12		! Characteristic Length
+!//////////////////////////////////////////////
+*AFUN,DEG
+IMMED,ON
+SOLVEMODEL = 1
+
+!----------------------------------------------
+! Define ARGS
+ITER = 1
+CLFACTOR = 0.5			! cracklength = clfactor*W
+CEXT = (CLFACTOR-0.5)*W	! crack extension from initial crack length
+
+!----------------------------------------------
+! Define Deflection Variables
+! > - /, A1,DEFL
+! Deflection parameters as percentage crack extension
+! Define Deflection Variables
+! > - /, Angle, Defh
+! Deflection parameters as percentage crack extension
+DEFHPC = 0.01
+DEFANG = 90
+DEFLPC = DEFHPC/TAN(DEFANG)
+A1PC = 1-DEFLPC 
+
+A1 = A1PC*CEXT
+DEFL = DEFLPC*CEXT
+HALFH = 0.6*W
+DEFH = DEFHPC*HALFH
+
+!----------------------------------------------
+! Define Misc Variables
+! Variables that can be args
+DEL = 0.2			! disp of top pin 
+MESHSIZE = 0.2		! Size of mesh before refinement		
+REFITER = 3			! number of refinement iterations
+
+! default material  = aluminium
+! 1 = iso bone, 2 = iso plastic bone
+! 3 = ortho bone (long frac), 4 = ortho bone (trans frac)
+BONEPROPS = 3		! Use bone material props
+
+!----------------------------------------------
+! Define Geometry Variables
+CL = CLFACTOR*W		! Crack length
+CL0 = 0.5*W
+
+NL = 0.48*W		! Notch length\
+!NW = 0.063*W/2	! Half Notch Width
+NW = 0.05*W/2
+WL = NW/(1/sqrt(3))	! Wedge Length
+SNL = 0.01*W	! Scalpel Notch Length
+PR = 0.25*W/2	! Pin Radius
+PMR = 0.35*W/2	! Hole mesh square size
+PL = 0.275*W	! Pin Y Location
+
+CF = 0.04*W		! concentration of mesh in front of crack
+CB = 0.04*W		! concentration of mesh behind crack
+CW = 0.5*W		! concentration width
+
+!----------------------------------------------
+! Define Key Points
+! General CT geometry
+K,101,0,0
+K,1,-0.25*W,0.6*W
+K,2,-PMR,0.6*W
+K,3,PMR,0.6*W
+K,4,NL-WL,0.6*W
+K,5,NL+SNL,0.6*W
+K,6,CL+CF,0.6*W
+K,7,W,0.6*W
+K,8,-PMR,PL+PMR
+K,9,PMR,PL+PMR
+K,10,-PMR,PL-PMR
+K,11,PMR,PL-PMR
+K,12,-0.25*W,NW
+K,13,-PMR,NW
+K,14,PMR,NW
+K,15,-0.25*W,-NW
+K,16,-PMR,-NW
+K,17,PMR,-NW
+K,18,-PMR,-PL+PMR
+K,19,PMR,-PL+PMR
+K,20,-PMR,-PL-PMR
+K,21,PMR,-PL-PMR
+K,22,-0.25*W,-0.6*W
+K,23,-PMR,-0.6*W
+K,24,PMR,-0.6*W
+K,25,NL-WL,-0.6*W
+K,26,NL+SNL,-0.6*W
+K,27,CL+CF,-0.6*W
+K,28,W,-0.6*W
+K,29,0,-0.275*W
+K,30,0,0.275*W
+
+! Wedge Notch kps
+! top part of wedge and notch
+K,31,NL-WL,NW
+K,32,NL-WL,0.05*W
+K,33,NL+SNL,0.05*W
+! top sharp notch
+!////////////////
+K,34,NL+SNL,0
+K,35,NL,0
+!////////////////
+
+! bottom part of wedge and notch
+K,36,NL-WL,-NW
+! bottom of sharp notch
+!////////////////
+K,37,NL,0
+K,38,NL+SNL,0
+!////////////////
+K,39,NL+SNL,-0.05*W
+K,40,NL-WL,-0.05*W
+
+! crack front
+K,41,CL,CW
+K,42,CL+CF,CW
+K,43,CL,DEFH
+K,44,CL+CF,DEFH
+K,45,CL,-CW
+K,46,CL+CF,-CW
+
+K,47,NL-WL,CW
+K,48,NL+SNL,CW
+K,49,NL+SNL,-CW
+K,50,NL-WL,-CW
+
+! CRACK PATH KPS
+K,51,CL0+A1,0
+!K,52,CL0+A1+DEFL,DEFH
+K,53,CL0+A1,0
+!K,54,CL0+A1+DEFL,DEFH
+
+!K,55,CL0+A1,CW
+!K,56,CL0+A1+DEFL,CW
+!K,57,CL0+A1,-CW
+!K,58,CL0+A1+DEFL,-CW
+
+! KPS FOR DIVIDING AREAS AROUND CRACK
+! TOP EDGE
+!K,59,CL0+A1,0.6*W
+!K,60,CL0+A1+DEFL,0.6*W
+K,61,CL,0.6*W
+
+! BOTTOM EDGE
+!K,62,CL0+A1,-0.6*W
+!K,63,CL0+A1+DEFL,-0.6*W
+K,64,CL,-0.6*W
+
+! FAR EDGE
+K,65,W,CW
+K,66,W,DEFH
+K,67,W,-CW
+
+!----------------------------------------------
+! Define Lines
+! Create Hole and Pin Geometry
+! TOP AND BOTTOM PIN
+CIRCLE,30,PR
+CIRCLE,29,PR
+! TOP AND BOTTOM HOLE
+CIRCLE,30,PR
+CIRCLE,29,PR
+
+! CREATE BASIC (NON-CRACK) LINES
+! CREATE HORIZONTAL LINES
+L,1,2
+L,2,3
+L,3,4
+L,4,5
+L,5,61
+!L,5,6
+L,6,7
+L,8,9
+L,10,11
+L,12,13
+L,13,14
+L,14,31
+L,15,16
+L,16,17
+L,17,36
+L,18,19
+L,20,21
+L,22,23
+L,23,24
+L,24,25
+L,25,26
+!L,26,27
+L,26,64
+L,27,28
+! CREATE VERTICAL LINES
+L,1,12
+L,2,8
+L,8,10
+L,10,13
+L,3,9
+L,9,11
+L,11,14
+L,4,47
+L,47,32
+L,5,48
+L,48,33
+L,6,42
+!L,7,28
+L,7,65
+L,15,22
+L,16,18
+L,18,20
+L,20,23
+L,17,19
+L,19,21
+L,21,24
+L,40,50
+L,50,25
+L,39,49
+L,49,26
+L,46,27
+L,11,47
+L,19,50
+
+! CREATE TOP WEDGE
+L,31,32
+L,32,33
+L,33,34
+L,34,35
+L,35,31
+
+! CREATE BOTTOM WEDGE
+L,36,37
+L,37,38
+L,38,39
+L,39,40
+L,40,36
+
+L,47,48
+L,50,49
+
+! CREATE BOUNDING BOX FOR CRACK PATH
+L,48,41
+!L,41,41 
+!L,56,41
+L,41,42
+L,43,44
+L,49,45
+!L,45,45
+!L,58,45
+L,45,46
+
+!L,41,51
+!L,56,52
+L,41,43
+L,42,44
+
+!L,53,45
+!L,54,58
+L,53,45
+L,44,46		! 90
+
+! CREATE CRACK PATH LINES
+! LAST LINE ABOVE IS 94
+L,34,51		! 91
+L,51,43		! 92
+!L,52,43	! 	
+
+L,38,53		! 93
+L,53,43		! 94
+!L,54,43	! 
+
+! CREATE FINAL LINES FOR BOUNDING PATH
+!L,61,61
+!L,60,61
+L,61,6
+L,42,65
+L,44,66
+L,46,67
+!L,64,64
+!L,63,64
+L,64,27
+
+L,61,41
+!L,60,56
+L,61,41
+L,6,42
+L,65,66
+L,66,67
+L,45,64
+!L,58,63
+L,45,64
+L,46,27
+L,67,28
+
+
+!----------------------------------------------
+! Create Areas
+!////////////////////////////
+! PIN AREAS ARE 1 AND 2
+AL,1,2,3,4
+AL,5,6,7,8
+!////////////////////////////
+! HOLE AREAS ARE 3 AND 4
+AL,23,44,24,41,9,10,11,12
+AL,31,57,32,54,13,14,15,16
+!////////////////////////////
+! FIXED AREAS 
+AL,17,40,41,42,25,39
+AL,28,53,54,55,33,52
+AL,18,43,23,40
+AL,32,58,34,55
+AL,24,45,26,42
+AL,29,56,31,53
+AL,19,46,64,44,43
+AL,65,60,35,58,57
+AL,64,47,66,27,45
+AL,30,75,59,65,56
+AL,20,48,46,76
+AL,77,60,62,36
+AL,76,49,67,47
+AL,74,61,77,59
+AL,66,67,68,69,70
+AL,71,72,73,74,75
+
+! CREATE CRACK PATH BOUNDING BOXES
+AL,49,78,83,87,88,68
+AL,79,83,84,80
+AL,89,73,85,61,81
+AL,80,90,85,86,82
+
+! CREATE SURROUNDING ARES
+AL,21,96,78,48
+AL,91,50,79,96
+AL,22,51,92,50
+AL,92,97,84,93
+AL,93,86,98,94 
+AL,94,100,38,63
+AL,82,63,95,99
+AL,81,99,37,62
+
+!----------------------------------------------
+! Material Properties
+! BONE PROPERTIES
+*IF,BONEPROPS,EQ,1,THEN
+	! ISO BONE
+	MP,EX,1,23100
+	MP,PRXY,1,0.325
+*ELSEIF,BONEPROPS,EQ,2,THEN
+	! ISO PLASTIC BONE
+	MP,EX,1,23100
+	MP,PRXY,1,0.325
+	TB,BISO,1
+	TBDATA,1,132 ! Yield stress (MPa)
+	TBDATA,2,693 ! Tangent modulus (MPa)	
+*ELSEIF,BONEPROPS,EQ,3,THEN
+	! ORTHO BONE (LONG FRAC)
+	MP,EX,1,23100
+	MP,EY,1,10400
+	MP,EZ,1,10400
+	
+	MP,GXY,1,3600	
+	MP,GYZ,1,3600	
+	MP,GXZ,1,3600	
+	
+	MP,PRXY,1,0.29
+	MP,PRYZ,1,0.51
+	MP,PRXZ,1,0.29	
+*ELSEIF,BONEPROPS,EQ,4,THEN
+	! ORTHO BONE (TRANS FRAC)
+	MP,EX,1,10400
+	MP,EY,1,23100
+	MP,EZ,1,10400
+	
+	MP,GXY,1,3600	
+	MP,GYZ,1,3600	
+	MP,GXZ,1,3600
+	
+	MP,PRXY,1,0.29
+	MP,PRYZ,1,0.29
+	MP,PRXZ,1,0.51
+*ELSE
+	MP,EX,1,70000
+	MP,PRXY,1,0.33
+*ENDIF
+
+
+! ANVIL PROPERTIES
+MP,EX,2,200000
+MP,PRXY,2,0.3
+
+! GENERAL ELEMENTS
+! use a 8 node quad element with plane stress
+ET,1,plane183,0,,0
+
+!----------------------------------------------
+! Meshing 
+P1 = MESHSIZE
+P2 = 1.5*P1
+
+LSEL,S,,,1,8
+LESIZE,ALL,P2
+
+! Mesh the Pins
+MSHAPE,1
+MSHKEY,2
+MAT,2
+AMESH,1
+AMESH,2
+
+MSHAPE,0
+MSHKEY,1
+MAT,1
+
+! LINE SIZE EVERYTHING ELSE
+ALLSEL
+LSEL,U,,,1,8
+LESIZE,ALL,P1
+ALLSEL
+
+! Mesh Around Pins
+MSHKEY,0
+MSHAPE,1
+ASEL,S,,,3,4
+AMESH,ALL
+ALLSEL
+MSHAPE,0
+MSHKEY,1
+
+! MESH FIXED AREAS
+! FIXED AREAS ARE 5-19
+MSHKEY,2
+ASEL,S,,,5,19
+AMESH,ALL
+ALLSEL
+
+! Mesh Wedge Notch
+LCCAT,67,68
+LCCAT,73,74
+MSHKEY,2
+ASEL,S,,,19,20
+AMESH,ALL
+ALLSEL
+
+! MAPPED MESH AREAS AROUND CRACK BOX
+MSHKEY,1
+ASEL,S,,,27,36
+AMESH,ALL
+ALLSEL
+
+! MAPPED MESH AREAS AROUND CRACK
+MSHKEY,2
+ASEL,S,,,21,26
+AMESH,ALL
+ALLSEL
+
+! Refine Crack Tip Mesh
+!K,43,CL,DEFH
+TIPX = CL
+TIPY = DEFH
+*IF,REFITER,GT,0,THEN
+	RDY = CF/REFITER
+	RDX = CF/REFITER
+	*DO,I,1,REFITER
+		NSEL,S,LOC,Y,DEFH-CB+(I-1)*RDY,DEFH+CF-(I-1)*RDY
+		NSEL,R,LOC,X,CL-CB+(I-1)*RDX,CL+CF-(I-1)*RDX
+		ESLN
+		EREFINE,ALL,,,1,0,OFF,ON
+		ALLSEL
+	*ENDDO
+*ENDIF
+ALLSEL
+
+!---------------------------------------------
+! Define contact elements
+MP,MU,4,0 ! friction for contact = 0
+ET,3,TARGE169
+ET,4,CONTA172
+R,4,,,1,1,,1
+KEYOPT,4,2,0
+KEYOPT,4,5,1
+KEYOPT,4,9,1
+KEYOPT,4,10,2
+KEYOPT,4,12,0
+
+MP,MU,6,0 ! friction for contact = 0
+ET,5,TARGE169
+ET,6,CONTA172
+R,6,,,1,1,,-1
+KEYOPT,6,2,0
+KEYOPT,6,5,1
+KEYOPT,6,9,1
+KEYOPT,6,10,2
+KEYOPT,6,12,0
+
+!---------------------------------------------
+! Define contact elements
+LSEL,S,LINE,,9,12
+NSLL,S,1
+TYPE,4
+MAT,4
+REAL,4
+ESURF
+ALLSEL
+
+! Top Pin
+LSEL,S,LINE,,1,4
+NSLL,S,1
+TYPE,3
+ESURF
+ALLSEL
+
+! Bottom Hole
+LSEL,S,LINE,,13,16
+NSLL,S,1
+TYPE,6
+MAT,6
+REAL,6
+ESURF
+ALLSEL
+
+! Bottom Pin
+LSEL,S,LINE,,5,8
+NSLL,S,1
+TYPE,5
+ESURF
+ALLSEL
+
+!----------------------------------------------
+! Define Loads and Boundary Conditions
+/SOLU
+ASEL,S,,,2
+NSLA,S,1
+D,ALL,UY,0
+D,ALL,UX,0
+ALLSEL
+
+ASEL,S,,,1
+NSLA,S,1
+D,ALL,UX,0
+ALLSEL
+
+RNODE = -1
+NSEL,S,LOC,X,0
+NSEL,R,LOC,Y,0.275*W
+D,ALL,UY,DEL
+*GET,RNODE,NODE,0,NUM,MAX
+ALLSEL
+
+!----------------------------------------------
+! Set up J-integral calc 
+! Define Crack Tip Coords
+! Crack tip KP = 43
+! Crack Ext KP = 44
+! Crack Normal KP = 41 
+CSKP,11,0,43,44,41,1,1
+CSYS,11
+
+KSEL,S,,,43
+NSLK
+CM,CRACK_TIP_NODE_CM,NODE
+ALLSEL
+
+CINT,NEW,1
+CINT,CTNC,CRACK_TIP_NODE_CM
+CINT,NORM,11,2
+CINT,SYMM,OFF
+CINT,NCON,6
+OUTRES,CINT,10 
+
+!----------------------------------------------
+! Solution Conditions
+! perform static analysis
+ANTYPE,0
+! use ramped loading
+KBC,0
+! Use automatic time stepping
+AUTOTS,ON
+! p1: number of substeps, p2: max substeps
+! p3: min substeps
+! ANSYS VM CT Jpl: NSUBST,10,1000,10
+NSUBST,20,200,10
+! non-linear geometry
+*IF,BONEPROPS,EQ,2,THEN
+	NLGEOM,ON
+*ELSE
+	NLGEOM,OFF
+*ENDIF
+! determines what is written to DB file
+OUTRES,ALL,ALL
+! sets time at the end of the load step
+TIME,1.0
+
+*IF,SOLVEMODEL,EQ,1,THEN
+	SOLVE
+*ENDIF
+
+!----------------------------------------------
+! Post Processing	
+/POST1
+J=0
+PRCINT,1,CTN_CM,JINT ! PRINT K VALUES
+*GET,J,CINT,1,CTIP,NODE(0,0,0),,5,,JINT ! GET J VALUE FOR CRACK TIP NODE	
+
+ALLSEL
+CSYS,0
+FYR = 0
+*GET,FYR,NODE,RNODE,RF,FY
+ALLSEL	
+
+!---------------------------------------------
+! Store data to file for current crack length inc, J, del, F
+! Store deflection data to file
+! > - / 
+! A1, DEFL,DEFANG 
+! THIS CODE MUST BE ALIGNED LEFT
+FNUM = CHRVAL(ITER)
+FA0 = CHRVAL(CLFACTOR*100)
+FDEFH = CHRVAL(DEFHPC*100)
+FDANG = CHRVAL(DEFANG)
+PROPS = CHRVAL(BONEPROPS)
+
+*CFOPEN,JSDV90_%PROPS%_%FA0%_%FDEFH%_%FDANG%_%FNUM%,csv
+*VWRITE,W,CLFACTOR,CL,A1PC,DEFHPC,DEFANG,DEL,FYR,J,
+(F7.3,',',F7.3,',',F7.3,',',F7.3,',',F7.3,',',F7.3,',',F10.5,',',F10.5,',',F10.5)
+*CFCLOS		
+!----------------------------------------
+
+
+

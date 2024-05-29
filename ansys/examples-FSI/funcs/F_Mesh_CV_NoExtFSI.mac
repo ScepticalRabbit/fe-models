@@ -1,0 +1,50 @@
+/PREP7
+
+!-------------------------------------------------------------------------
+! MESHING
+AMESH,ALL
+
+!-------------------------------------------------------------------------
+! OUTPUT NODE AND ELEM TABLE
+/CWD,%PATH_A%%PATH_B%%PATH_C%%PATH_D%%PATH_E%%PATH_DATA%
+
+! Setup formatting for output files
+/HEADER,ON,ON,ON,ON,ON,OFF
+/PAGE,2*NCOUNT,,2*NCOUNT
+    
+! Get the node locations and save to file
+/OUTPUT,Node_Locs,txt
+NLIST,ALL, , ,XYZ,NODE,NODE,NODE
+/OUTPUT
+
+! Get the element table
+/OUTPUT,Elem_Table,txt
+ELIST,ALL
+/OUTPUT
+
+! Get element centroids
+ALLSEL
+ESEL,S,TYPE,,1
+NSLE,S
+
+*GET,eCount,ELEM,0,COUNT
+*DIM,eCent,ARRAY,eCount,3
+
+*DO,ee,1,eCount
+    *GET,eCentX,ELEM,ee,CENT,X
+    *GET,eCentY,ELEM,ee,CENT,Y
+    *GET,eCentZ,ELEM,ee,CENT,Z
+    eCent(ee,1) = eCentX
+    eCent(ee,2) = eCentY
+    eCent(ee,3) = eCentZ    
+*ENDDO
+ALLSEL
+
+*CFOPEN,elem_centroids,csv
+*VWRITE,eCent(1,1),eCent(1,2),eCent(1,3)
+%12.5E,%12.5E,%12.5E,
+*CFCLOS
+
+/CWD,%PATH_A%%PATH_B%%PATH_C%%PATH_D%%PATH_E%%PATH_FUNC%
+
+FINISH

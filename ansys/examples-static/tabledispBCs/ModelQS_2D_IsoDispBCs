@@ -1,0 +1,225 @@
+!/////////////////////////////////////////////////////
+! FE MODEL 2D
+! Author: Lloyd Fletcher
+! Date: 12/4/2020
+! Specimen Type: Isotropic, Tensile
+! Units: N, mm, MPa
+!/////////////////////////////////////////////////////
+
+FINISH
+/CLEAR,NOSTART
+/CWD,'C:\Users\Lloyd\Documents\UofS_Matlab\1_ImageUpdating\ANSYSModels\Model_2D_Isotropic\Data_DispBCs\'
+/PREP7
+
+/PNUM,KP,1
+/PNUM,LINE,1
+/PNUM,AREA,1
+*AFUN,DEG
+
+!----------------------------------------------
+! Define Variables
+iteration = 0
+solveModel = 1
+
+! Data output flags, only works if solveModel=1
+outputFiles = 1
+outputNodeForce = 1
+outputStressStrain = 1
+
+! Specimen Geometry
+specLx = 70e-3
+specLy = 40e-3
+specLz = 1e-3
+specElemSize = 1e-3
+! For quadratic elements /2
+specNodeSpace = specElemSize/2
+
+! Specimen Properties
+specE11 = 3e9
+specE22 = specE11
+specNu12 = 0.35
+specG12 = specE11/(2*(1+specNu12))
+specAngle = 0
+
+! Resultant applied force and number of steps
+numSteps = 2
+resForce = 0.0 ! Displacement BCs applied here so set this to zero 
+
+! Tolerance for selecting nodes
+tol = specElemSize/8 
+! Character number for file saving
+FILENUM = CHRVAL(iteration) 
+
+!----------------------------------------------
+! Load BC Tables
+
+! X Displacement on the loaded edge
+rowSkip = 0
+/INQUIRE,numlines,LINES,edgeBCDx,csv
+toRead = numlines-rowSkip
+*DIM,tabBCDx,TABLE,toRead
+*TREAD,tabBCDx,edgeBCDx,csv,,rowSkip
+!testTabBCDx = tabBCDx(specLy/2)
+
+! Y Displacement on the loaded edge
+rowSkip = 0
+/INQUIRE,numlines,LINES,edgeBCDy,csv
+toRead = numlines-rowSkip
+*DIM,tabBCDy,TABLE,toRead
+*TREAD,tabBCDy,edgeBCDy,csv,,rowSkip
+!testTabBCDy = tabBCDy(specLy/2)
+
+!----------------------------------------------
+! Define Geometry
+BLC4,0,0,specLx,specLy
+
+!----------------------------------------------
+! Define Material Properties 
+MP,EX,1,specE11
+!MP,EY,1,specE22
+MP,PRXY,1,specNu12
+!MP,GXY,1,specG12
+
+!----------------------------------------------
+! Define Elements
+! use a 8 node quad element with plane stress
+ET,1,plane183,0,,3,
+R,1,specLz,
+
+! Create a local coordinate system aligned to the material axis
+LOCAL,11,CART,0,0,0,specAngle
+! Assign off-axis co-ords to elements
+ESYS,11
+
+!----------------------------------------------
+! Meshing 
+ESIZE,specElemSize
+MAT,1		! Material 1
+TYPE,1		! Element Type 1
+MSHAPE,0	! Use quads
+MSHKEY,2	! Use mapped mesh if possible
+AMESH,ALL
+EPLOT
+
+!----------------------------------------------
+! Define Loads and Boundary Conditions
+/SOLU
+! Apply boundary conditions in global co-ords
+CSYS,0
+
+! Constrain the left hand edge
+NSEL,S,LOC,X,-tol,tol
+D,ALL,UX,0
+D,ALL,UY,0
+ALLSEL
+
+! Get all the nodes on the right hand edge
+NSEL,S,LOC,X,specLx-tol,specLx+tol
+*GET,numEdgeNodes,node,0,count
+ALLSEL
+
+! Start at the bottom corner of the right hand edge
+currLocY = 0.0
+*DO,nn,1,numEdgeNodes,1
+	! Get the node at the current location
+	NSEL,S,LOC,X,specLx-tol,specLx+tol
+	NSEL,R,LOC,Y,currLocY-tol,currLocY+tol
+	! Use tables to apply displacement BCs
+	D,ALL,UX,tabBCDx(currLocY)
+	D,ALL,UY,tabBCDy(currLocY)
+	! Move to the next location and reset selection
+	currLocY = currLocY+specNodeSpace
+	ALLSEL
+*ENDDO
+
+! determines what is written to DB file
+NLGEOM,0
+AUTOTS,ON
+NSUBST,numSteps,500,numSteps
+OUTRES,ALL,ALL
+*IF,solveModel,EQ,1,THEN
+	SOLVE
+*ENDIF
+
+!----------------------------------------------
+! Post Processing	
+/POST1
+/DSCALE,1,1.0 
+
+!-----------------------------------------------------
+! Output Simulation Parameters
+*GET,NCOUNT,NODE,0,COUNT
+*CFOPEN,SimParams_%FILENUM%,txt
+
+*VWRITE,'fNum    ','numSteps'
+(A8,' |',A8,' |')
+*VWRITE,iteration,numSteps
+(E9.3,',',E9.3)
+
+*VWRITE,'specLx  ','specLy  ','specLz  ','specESze','resF    '
+(A8,' |',A8,' |',A8,' |',A8,' |',A8,' |')
+*VWRITE,specLx,specLy,specLz,specElemSize,resForce
+(E9.3,',',E9.3,',',E9.3,',',E9.3,',',E9.3)
+
+*VWRITE,'specE11 ','specE22 ','specNu12','specG12','specAng '
+(A8,' |',A8,' |',A8,' |',A8,' |',A8,' |')
+*VWRITE,specE11,specE22,specNu12,specG12,specAngle
+(E9.3,',',E9.3,',',E9.3,',',E9.3,',',E9.3)
+*CFCLOS
+!-----------------------------------------------------
+
+*IF,outputFiles,EQ,1,THEN
+	/GRAPHICS,FULL
+	SET,FIRST	! Read in initial result set
+	RSYS,0 ! Report results in the global cartesian system 
+	ALLSEL
+	
+	! Setup formatting for output files
+	!/HEADER,OFF,OFF,OFF,OFF,OFF,OFF
+	/HEADER,ON,ON,ON,ON,ON,OFF
+	/PAGE,2*NCOUNT,,2*NCOUNT
+
+	! Get the node locations and save to file
+	/OUTPUT,Node_Locs_%FILENUM%,txt
+	NLIST,ALL, , ,XYZ,NODE,NODE,NODE
+	/OUTPUT
+
+	! Get the element table
+	!/OUTPUT,Elem_Table_%FILENUM%,txt
+	!ELIST,ALL
+	!/OUTPUT
+
+	! Loop through each time step and save to file
+	SET,FIRST 	! Read in initial result set
+	*DO,S,1,numSteps
+		stepStr = CHRVAL(S)
+
+		! Get nodal displacement
+		/OUTPUT,Node_Disp_%FILENUM%_%stepStr%,txt,,
+		PRNSOL,U,COMP   
+		/OUTPUT
+		
+		*IF,outputNodeForce,EQ,1,THEN
+			ALLSEL
+			NSEL,S,LOC,X,specLx-specTol,specLx+specTol
+			/OUTPUT,Node_Force_%FILENUM%_%stepStr%,txt,,
+			NFORCE,ALL  
+			/OUTPUT
+			ALLSEL
+		*ENDIF
+		
+		*IF,outputStressStrain,EQ,1,THEN
+			! Get strain at the nodes
+			/OUTPUT,Node_Strain_%FILENUM%_%stepStr%,txt,,
+			PRNSOL,EPTO,COMP   
+			/OUTPUT	
+			! Get stress at the nodes
+			/OUTPUT,Node_Stress_%FILENUM%_%stepStr%,txt,,
+			PRNSOL,S,COMP   
+			/OUTPUT
+		*ENDIF
+		
+		SET,NEXT
+	*ENDDO
+*ENDIF
+

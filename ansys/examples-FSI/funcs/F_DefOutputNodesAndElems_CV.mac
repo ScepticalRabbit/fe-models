@@ -1,0 +1,168 @@
+/SOLU
+
+!=============================================
+! OUTPUT NODES FOR POST26 - Stress and Disp
+
+! DISP OUTPUT NODE: Cantilever Free End Centre
+ALLSEL 
+ESEL,S,TYPE,,1
+NSLE,S
+NSEL,R,LOC,X,pipeCantOutLeng-tol,pipeCantOutLeng+tol
+NSEL,R,LOC,Y,-ctol,+ctol
+NSEL,R,LOC,Z,-ctol,ctol
+NPLOT
+*GET,dispNodeFreeEnd,NODE,0,NUM,MAX
+ALLSEL
+
+! DISP OUTPUT NODE: Offset Node 1 
+ALLSEL
+ESEL,S,TYPE,,1
+NSLE,S
+NSEL,R,LOC,X,pipeCantOutLeng-pipeBendOutRad-tol,pipeCantOutLeng-pipeBendOutRad+tol
+NSEL,R,LOC,Z,pipeUOutDistZ-ctol,pipeUOutDistZ+ctol
+NSEL,R,LOC,Y,-ctol,+ctol
+*GET,dispNodeOffset1,NODE,0,NUM,MAX
+ALLSEL 
+
+! DISP OUTPUT NODE: Offset Node 2
+ALLSEL
+ESEL,S,TYPE,,1
+NSLE,S
+NSEL,R,LOC,X,pipeCantOutLeng-pipeBendOutRad-tol,pipeCantOutLeng-pipeBendOutRad+tol
+NSEL,R,LOC,Z,-pipeUOutDistZ-ctol,-pipeUOutDistZ+ctol
+NSEL,R,LOC,Y,-ctol,+ctol
+*GET,dispNodeOffset2,NODE,0,NUM,MAX
+ALLSEL
+
+! DISP OUTPUT NODE: Midspan Node 1
+ALLSEL
+ESEL,S,TYPE,,1
+NSLE,S
+NSEL,R,LOC,X,pipeCantOutLeng/2-tol,pipeCantOutLeng/2+tol
+NSEL,R,LOC,Z,pipeUOutDistZ-ctol,pipeUOutDistZ+ctol
+NSEL,R,LOC,Y,-ctol,+ctol
+*GET,dispNodeMidSpan1,NODE,0,NUM,MAX
+ALLSEL
+
+! DISP OUTPUT NODE: Midspan Node 2
+ALLSEL
+ESEL,S,TYPE,,1
+NSLE,S
+NSEL,R,LOC,X,pipeCantOutLeng/2-tol,pipeCantOutLeng/2+tol
+NSEL,R,LOC,Z,-pipeUOutDistZ-ctol,-pipeUOutDistZ+ctol
+NSEL,R,LOC,Y,-ctol,+ctol
+*GET,dispNodeMidSpan2,NODE,0,NUM,MAX
+ALLSEL
+
+DEBUG_OUTPUT_NODES = 0
+*IF,DEBUG_OUTPUT_NODES,EQ,1,THEN
+	! Apply forces to selected nodes to visualise them
+	F,dispNodeFreeEnd,FY,1.0
+	F,dispNodeOffset1,FY,1.0
+	F,dispNodeOffset2,FY,1.0
+	F,dispNodeMidSpan1,FY,1.0
+	F,dispNodeMidSpan2,FY,1.0
+	NPLOT
+	
+	/PBC,ALL, ,1
+	/VIEW,1,,1  
+	/ANG,1  
+	/AUTO,1 
+	/REP,FAST  
+*ENDIF
+
+!=============================================
+! STRESS OUTPUT NODE: Support 1
+ALLSEL
+ESEL,S,TYPE,,1
+NSLE,S
+NSEL,R,LOC,Y,pipeRad-ctol,pipeRad+ctol
+NSEL,R,LOC,Z,-pipeCentLocZ-ctol,-pipeCentLocZ+ctol
+NSEL,R,LOC,X,-tol,+tol
+ESLN,R
+*GET,s1_top_maxSElem,ELEM,0,NUM,MAX
+ESEL,R,ELEM,,s1_top_maxSElem
+NSLE,R
+*GET,s1_top_maxSNode,NODE,0,NUM,MAX
+ALLSEL
+
+ALLSEL
+ESEL,S,TYPE,,1
+NSLE,S
+NSEL,R,LOC,Y,-pipeRad-ctol,-pipeRad+ctol
+NSEL,R,LOC,Z,-pipeCentLocZ-ctol,-pipeCentLocZ+ctol
+NSEL,R,LOC,X,-tol,+tol
+ESLN,R
+*GET,s1_bot_maxSElem,ELEM,0,NUM,MAX
+ESEL,R,ELEM,,s1_bot_maxSElem
+NSLE,R
+*GET,s1_bot_maxSNode,NODE,0,NUM,MAX
+ALLSEL
+
+ALLSEL
+ESEL,S,TYPE,,1
+NSLE,S
+NSEL,R,LOC,Y,-ctol,+ctol
+NSEL,R,LOC,Z,-pipeUOutDistZ-ctol,-pipeUOutDistZ+ctol
+NSEL,R,LOC,X,-tol,+tol
+ESLN,R
+*GET,s1_mid_maxSElem,ELEM,0,NUM,MAX
+ESEL,R,ELEM,,s1_mid_maxSElem
+NSLE,R
+*GET,s1_mid_maxSNode,NODE,0,NUM,MAX
+ALLSEL
+
+! STRESS OUTPUT NODE: Support 2
+ALLSEL
+ESEL,S,TYPE,,1
+NSLE,S
+NSEL,R,LOC,Y,pipeRad-ctol,pipeRad+ctol
+NSEL,R,LOC,Z,pipeCentLocZ-ctol,pipeCentLocZ+ctol
+NSEL,R,LOC,X,-tol,+tol
+ESLN,R
+*GET,s2_top_maxSElem,ELEM,0,NUM,MAX
+ESEL,R,ELEM,,s2_top_maxSElem
+NSLE,R
+*GET,s2_top_maxSNode,NODE,0,NUM,MAX
+ALLSEL
+
+ALLSEL
+ESEL,S,TYPE,,1
+NSLE,S
+NSEL,R,LOC,Y,-pipeRad-ctol,-pipeRad+ctol
+NSEL,R,LOC,Z,pipeCentLocZ-ctol,pipeCentLocZ+ctol
+NSEL,R,LOC,X,-tol,+tol
+ESLN,R
+*GET,s2_bot_maxSElem,ELEM,0,NUM,MAX
+ESEL,R,ELEM,,s2_bot_maxSElem
+NSLE,R
+*GET,s2_bot_maxSNode,NODE,0,NUM,MAX
+ALLSEL
+
+ALLSEL
+ESEL,S,TYPE,,1
+NSLE,S
+NSEL,R,LOC,Y,-ctol,+ctol
+NSEL,R,LOC,Z,pipeUOutDistZ-ctol,pipeUOutDistZ+ctol
+NSEL,R,LOC,X,-tol,+tol
+ESLN,R
+*GET,s2_mid_maxSElem,ELEM,0,NUM,MAX
+ESEL,R,ELEM,,s2_mid_maxSElem
+NSLE,R
+*GET,s2_mid_maxSNode,NODE,0,NUM,MAX
+ALLSEL
+
+DEBUG_OUTPUT_ELEMS = 0
+*IF,DEBUG_OUTPUT_ELEMS,EQ,1,THEN
+	ALLSEL
+	ESEL,S,ELEM,,s1_top_maxSElem
+	ESEL,A,ELEM,,s1_bot_maxSElem
+	ESEL,A,ELEM,,s1_mid_maxSElem
+	ESEL,A,ELEM,,s2_top_maxSElem
+	ESEL,A,ELEM,,s2_bot_maxSElem
+	ESEL,A,ELEM,,s2_mid_maxSElem
+	EPLOT
+*ENDIF
+!=============================================
+
+FINISH

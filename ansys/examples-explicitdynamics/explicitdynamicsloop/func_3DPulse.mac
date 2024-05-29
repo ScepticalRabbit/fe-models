@@ -1,0 +1,263 @@
+!/////////////////////////////////////////////////////
+! Explicit Dynamics Model for Stress Wave in 3D Solid
+! Model: Pressure pulse on a 3D plate
+! Author: Lloyd Fletcher
+! Date Created: 25/5/2016
+!/////////////////////////////////////////////////////
+! UNITS: N, kg, m, Pa
+
+FINISH
+/CLEAR,NOSTART
+/CWD,'E:\ANSYS_WorkingDirectory\ED_DampSweep3D\ED_3DPulse\SweepData'
+
+Jobname = 'Pulse_3D' 
+/TITLE,Jobname 
+/FILNAME,Jobname 
+
+!/////////////////////////////////////////////////////
+! Start Preprocessor
+/PREP7
+
+! This flag determines if the nodal output will be 
+! written to file, useful to turn off for debugging
+outputFiles = 1
+solveFlag = 1
+
+!-----------------------------------------------------
+! Simulation Parameters
+iteration = ARG1
+specElemSize = ARG2
+timeStepFactor = ARG3
+betaDamp = ARG4
+
+! Specimen Geometry
+specHeight = 40E-3 
+specLength = 60E-3
+specThickness = 4E-3
+! Input Material Properties:
+! Aluminium
+specRo= 2700
+specEx = 70E9
+specNxy = 0.33
+
+! Pulse Loading Parameters
+pulsePressure = 30e6	! N/m^2 or Pa
+pulseTime = 20e-6		! Seconds
+
+! Calculate required sim time for 1 full reflection in spec
+specWaveSpeed = sqrt(specEx/((1-specNxy**2)*specRo))
+! Calculate minimum sim time for a 2x full reflections
+! Apply a safety factor to make sure the full first reflection is captured
+minSimTime = 2*((specLength*2)/specWaveSpeed)
+
+! Simulation Time Parameters
+resSteps = 128
+reportTime = minSimTime/resSteps
+simTime = resSteps*reportTime
+
+!-----------------------------------------------------
+! Create Specimen Geometry
+BLC4,0,0,specLength,specHeight
+
+!-----------------------------------------------------
+! Define Elements and Material Properties
+! create dummy element for extruding 2D mesh to 3D
+ET,9,MESH200,6
+
+! Material Properties and Element for Specimen
+ET,1,SOLID164
+R,1
+MP,DENS,1,specRo   
+MP,EX,1,specEx 
+MP,PRXY,1,specNxy  
+
+!-----------------------------------------------------
+! Meshing
+! Mesh Size Parameter
+ESIZE,specElemSize
+
+! Mapped mesh the specimen
+TYPE,9
+REAL,1
+MAT,1
+MSHKEY,1
+AMESH,ALL
+
+! Extrude the mapped mesh to a volume
+thicknessDivs = NINT(specThickness/specElemSize)
+ESIZE,,thicknessDivs
+TYPE,1
+REAL,1
+MAT,1
+! Page 5-18 in meshing guide
+VEXT,1,1,1,,,specThickness
+! Clean out the dummy mesh 200 elems
+ACLEAR,1
+
+!-----------------------------------------------------
+! Apply Pulse to Struck Edge
+! Pressure Value of the Pulse
+
+! Create nodecomponent to apply force to
+ALLSEL
+SELTOL,1E-6
+ESEL,S,TYPE,,1
+NSLE,S,ALL
+NSEL,R,LOC,X,specLength-specElemSize/2,specLength+specElemSize/2
+CM,STRUCK_EDGE,NODE
+*GET,numEdgeNodes,NODE,0,COUNT
+SELTOL
+ALLSEL
+
+totalForce = pulsePressure*(specHeight*specThickness)
+pulseForce = totalForce/numEdgeNodes
+
+! Define time and force arrays to describe the pulse
+*DIM,TIME,ARRAY,3
+TIME(1) = 0
+TIME(2) = pulseTime/2
+TIME(3) = pulseTime
+
+*DIM,PULSE,ARRAY,3
+PULSE(1) = 0
+PULSE(2) = -pulseForce
+PULSE(3) = 0
+
+! APPLY Force Pulse TO BLOCK
+EDLOAD,ADD,FX,,STRUCK_EDGE,TIME(1),PULSE(1)
+
+!-----------------------------------------------------
+! Apply numerical damping
+! Create Parts List to assign damping coeff
+EDPART,CREATE
+*IF,betaDamp,GT,0,THEN
+	EDDAMP,1,,betaDamp				! Beta Damping
+*ENDIF			
+
+FINISH
+!/////////////////////////////////////////////////////
+! Start solution phase
+/SOLU
+! Simulation time, solve for microsec
+TIME,simTime
+ 
+! Output parameters for simulation 
+EDRST,resSteps,				! Used for post1 analysis to animate results (.rst)
+EDHTIME,resSteps,			! Used for post26 analysis(.his)
+EDENERGY,1,1,1,1			! Energy output options		
+EDOUT,GLSTAT				! Write all energy stats to file	
+EDCTS,0,timeStepFactor	    ! Scale Factor for Calculated Time Step
+
+! Capture history data for specimen nodes
+ALLSEL
+NSEL,ALL
+CM,SPECIMEN,NODE
+EDHIST,SPECIMEN
+ALLSEL
+
+!------------------------------------------------------
+! Solve the model
+! NOTE: EDSOLV$STAT GETS THE SOLVER OPTIONS
+*IF,solveFlag,EQ,1,THEN
+	SOLVE
+*ENDIF
+FINISH
+
+!/////////////////////////////////////////////////////
+! Post Processing
+/POST1
+EPLOT
+/VIEW,1,1,1,1   
+/ANG,1  
+/AUTO,1 
+/REP,FAST   
+
+!-----------------------------------------------------
+! Output Simulation Parameters for Postprocessing
+!-----------------------------------------------------
+! This outputs the specimen material properties and 
+! other parameters to a txt file 
+FILENUM = CHRVAL(iteration)
+*CFOPEN,SimParams3D_%FILENUM%,txt
+*VWRITE,'SIMDATA'
+(A8)
+*VWRITE,'SimTime ','TimeInc ','ResSteps','TSFactor','BDampPc ','PulsePrs','PulseT  '
+(A8,' |',A8,' |',A8,' |',A8,' |',A8,' |',A8,' |',A8,' |')
+*VWRITE,simTime,reportTime,resSteps,timeStepFactor,betaDamp,pulsePressure,pulseTime
+(E9.3,',',E9.3,',',E9.3,',',E9.3,',',E9.3,',',E9.3,',',E9.3)
+*VWRITE,'       '
+(A8)
+*VWRITE,'SPECGEOM'
+(A8)
+*VWRITE,'specHeight','specLength','specThickness','specElSi'
+(A8,' |',A8,' |',A8,' |',A8,' |')
+*VWRITE,specHeight,specLength,specThickness,specElemSize
+(E9.3,',',E9.3,',',E9.3,',',E9.3)
+*VWRITE,'SPECPROPS'
+(A8)
+*VWRITE,'RO      ','EX      ','EY      ','EZ      ','NUXY    ','NUYZ    ','NUXZ    ','GXY     ','GYZ     ','GXZ     '
+(A8,' |',A8,' |',A8,' |',A8,' |',A8,' |',A8,' |',A8,' |',A8,' |',A8,' |',A8,' |')
+*VWRITE,specRo,specEx,specEy,specEz,specNxy,specNyz,specNxz,specGxy,specGyz,specGxz
+(E9.3,',',E9.3,',',E9.3,',',E9.3,',',E9.3,',',E9.3,',',E9.3,',',E9.3,',',E9.3,',',E9.3)
+*CFCLOS
+
+!-----------------------------------------------------
+! Output Nodal Data for Specimen
+!-----------------------------------------------------
+*IF,outputFiles,EQ,1,THEN
+	! Turn on full graphics to get all nodal data not just the surface
+	/GRAPHICS,FULL
+	
+	SET,FIRST
+	! Setup formatting for output files
+	/HEADER,OFF,OFF,OFF,OFF,OFF,OFF
+	ALLSEL
+	*GET,NCOUNT,NODE,0,COUNT
+	/PAGE,NCOUNT+1,,NCOUNT+1
+
+	!-----------------------------------------------------
+	! Get nodal data from the specimen 
+	!-----------------------------------------------------
+	! Get the surface node locations and save to file
+	NSEL,S,LOC,Z,0
+	/OUTPUT,Surface_Node_Locs_%FILENUM%,txt
+	NLIST,ALL, , ,XYZ,NODE,NODE,NODE
+	/OUTPUT
+	ALLSEL
+
+	! Get the centre node locations and save to file
+	/OUTPUT,All_Node_Locs_%FILENUM%,txt
+	NLIST,ALL, , ,XYZ,NODE,NODE,NODE
+	/OUTPUT
+	
+	! Get the load step data to determine actual data time points
+	/OUTPUT,DataSets_%FILENUM%,txt
+	SET,LIST
+	/OUTPUT
+
+	! Loop through each time step and save to file
+	SET_TIME = 0
+	*DO,S,1,resSteps
+		! Read in data set at particular time
+		SET,,,1,,SET_TIME,, 
+		
+		! Get nodal elastic strains
+		/OUTPUT,Node_Strain_%FILENUM%,txt,,APPEND
+		PRNSOL,EPEL,COMP   
+		/OUTPUT	
+		! Get nodal stress
+		/OUTPUT,Node_Stress_%FILENUM%,txt,,APPEND
+		PRNSOL,S,COMP   
+		/OUTPUT	
+		! Get nodal acceleration
+		/OUTPUT,Node_Accel_%FILENUM%,txt,,APPEND
+		PRNSOL,A,COMP   
+		/OUTPUT	
+		
+		SET_TIME = SET_TIME+reportTime
+	*ENDDO
+	/GRAPHICS,POWER
+*ENDIF
+
+FINISH
+

@@ -1,0 +1,202 @@
+!/////////////////////////////////////////////////////////////////////////
+! FE MODEL - TRANSIENT DYNAMICS FOR FIV VALIDATION
+! Authors: Lloyd Fletcher
+! Units: N, m, Pa
+!/////////////////////////////////////////////////////////////////////////
+
+! These two commands clear out ANSYS and set the working directory
+FINISH
+/CLEAR,NOSTART 
+
+!PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP
+! Set path variables
+useWorkPath = 2
+*IF,useWorkPath,EQ,1,THEN
+    PATH_A = 'D:\'
+    PATH_B = ''
+    PATH_C = 'FEA_ANSYS_Work_Dir\'
+*ElSEIF,useWorkPath,EQ,2,THEN
+    PATH_A = 'C:\'
+    PATH_B = 'TempWorkingDirectory\'
+    PATH_C = 'LloydFletcher\'
+*ELSE
+    PATH_A = 'D:\'
+    PATH_B = 'UKAEA_Work\'
+    PATH_C = 'FEA_ANSYS_Work_Dir\'
+*ENDIF
+
+! Core Paths
+PATH_D = 'lf-fiv-val\'
+PATH_E = 'models-noextfsi\'
+! Function and Data Path
+PATH_FUNC = 'funcs\'
+PATH_DATA = 'data_td_m1_cv\'
+PATH_FLOAD = 'fluidload_m1_cv\'
+
+! Set working directory to the function path first
+/CWD,%PATH_A%%PATH_B%%PATH_C%%PATH_D%%PATH_E%%PATH_FUNC%
+!PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP
+
+Jobname = 'TRANSDYN_CV_NOEXTFSI'
+/TITLE,Jobname
+/FILNAME,Jobname
+! Makes trig functions work in degrees instead of radians 
+*AFUN,DEG   
+pi = 3.141592653589793
+/SHOW,CLOSE 
+/SHOW, 
+
+/NERR,,90000000
+
+/PREP7 
+!-------------------------------------------------------------------------
+! PARAMETER DEFINITIONS
+/PNUM,KP,0  
+/PNUM,LINE,0
+/PNUM,AREA,0
+
+! Solve Flags
+writeElemFileOnly = 0
+solveTrans = 1
+
+! Post-Processing Flags
+post26TSvmOn = 1
+post26TUyOn = 1
+post26FFTOn = 0
+post1On = 0
+post1PressOn = 1
+post1DICUQ = 1
+
+! Physics Flags - NOTE NO FSI HERE!
+useTimeExtPress = 0
+timeExtStr = '' ! Use 'Ext1' or 'Ext2'
+useTotPress = 0
+
+nonLinGeomOn = 0
+useVisc = 0
+useAcousticPressBC = 0
+
+! Damping Parameters
+dampOn = 0
+dampRatio = 0.0 !0.5/100
+dampFreq1 = 0.0		! Set this to zero - no mass damping
+dampFreq2 = 41.59 	! Set this to the first natural freq
+! f1 =  Hz 
+! f2 =  Hz
+! f3 =  Hz
+
+! Mesh size variables
+meshRefFact = 1
+pipeLengElems = NINT(50*meshRefFact)
+pipeCircElems = NINT(12*meshRefFact)
+! Mesh refinement variables
+refMeshFlag = 0
+refLocalSelDiams = 1
+refLocalFactor = 1
+! 1 = 12->36 = x3
+! 2 = 12->36 = x3
+! 3 = 12->108 = x9
+! 5 = 12->108 = x9
+
+! Calculated Damping Parameters
+dampOm1 = 2*PI*dampFreq1
+dampOm2 = 2*PI*dampFreq2
+*IF,dampOn,EQ,1,THEN
+	dampAlpha = 2*dampRatio*(dampOm1*dampOm2)/(dampOm1+dampOm2)
+	dampBeta = 2*dampRatio/(dampOm1+dampOm2)
+*ELSE
+	dampRatio = 0.0
+	dampAlpha = 0.0
+	dampBeta = 0.0
+*ENDIF
+
+*IF,writeElemFileOnly,EQ,1,THEN
+solveTrans = 0
+post26TSvmOn = 0
+post26TUyOn = 0
+post26FFTOn = 0
+post1On = 0
+post1PressOn = 0
+post1DICUQ = 0
+*ENDIF
+
+!-------------------------------------------------------------------------
+! Loads and time parameters
+staticSolveStep = 2
+outRelativeFreq = 5 ! Output every X solve steps, relative frequency to solve step
+
+! Transient dyanmics loads and timing
+timeStep = 0.02e-3  	! s
+
+! Total Simulation Time
+simTime =  0.1		! s
+! For testing a solve comment out for full run
+! simTime =  100*timeStep		! s
+
+! Pipe Loads
+pipeIntPressOn = 0	! NOTE: turned off in functions
+pipeIntPress = 15e6 ! Pa
+pipeExtPressOn = 0	! Applies 'bending' pressure on top of pipe
+pipeExtPress = 8 ! equivalent to buoyancy force in Pa, = 8 Pa 
+! NOTE: drag force calcs
+! PbLi @ 1mm/s = 0.0057 Pa
+! PbLi @ 10mm/s = 0.57 Pa
+! PbLi @ 100mm/s = 57 Pa
+
+! Calculated parameters
+solveFreq = 1/timeStep
+outTimeStep = outRelativeFreq*timeStep
+outTrueFreq = 1/outTimeStep ! True output frequency in Hz
+outNumSteps = NINT(simTime/outTimeStep)
+
+!-------------------------------------------------------------------------
+! GEOMETRY
+F_DefGeom_CV_NoExtFSI
+
+!-------------------------------------------------------------------------
+! ELEMENTS AND MATERIALS
+F_DefMatAndElems_CV_NoExtFSI
+
+!-------------------------------------------------------------------------
+! MESHING
+F_Mesh_CV_NoExtFSI
+
+!-------------------------------------------------------------------------
+! BOUNDARY CONDITIONS, LOADs, OUTPUT NODES/ELEMS
+F_DefBCs_CV_NoExtFSI
+F_DefOutputNodesAndElems_CV
+
+!-------------------------------------------------------------------------
+! FLUID LOADING TABLE
+F_DefFluidLoad_CV
+
+/PSF,DEFA, ,1,0,1   
+/PBF,DEFA, ,1
+/PBC,ALL, ,1
+/PSF,PRES,NORM,2,1,1
+/VIEW,1,1,2,3   
+/ANG,1  
+EPLOT
+
+!-------------------------------------------------------------------------
+! SOLUTION - TRANSIENT DYNAMICS
+/SOLU
+*IF,solveTrans,EQ,1,THEN
+F_SolveTransDyn
+*ENDIF
+FINISH
+
+!-------------------------------------------------------------------------
+! POST-PROCESSING - POST26
+/CWD,%PATH_A%%PATH_B%%PATH_C%%PATH_D%%PATH_E%%PATH_FUNC%
+F_TransDyn_Post26
+
+!-------------------------------------------------------------------------
+! POST-PROCESSING - POST1
+/CWD,%PATH_A%%PATH_B%%PATH_C%%PATH_D%%PATH_E%%PATH_FUNC%
+F_TransDyn_Post1
+
+!-------------------------------------------------------------------------
+! POST-PROCESSING - POST1 disp fields for DICUQ
+/CWD,%PATH_A%%PATH_B%%PATH_C%%PATH_D%%PATH_E%%PATH_FUNC%
+F_TransDyn_Post1_DICUQ

@@ -1,0 +1,150 @@
+!/////////////////////////////////////////////////////
+! FE MODEL 2D
+! Author: Lloyd Fletcher
+! Date: 13/2/2020
+! Specimen Type: Isopescu
+! Units: N, mm, MPa
+!/////////////////////////////////////////////////////
+
+FINISH
+/CLEAR,NOSTART
+/CWD,'C:\Users\Lloyd\Documents\UofS_ANSYSWorkingDirectory\QSModel_Iospescu\Data\'
+/PREP7
+
+/PNUM,KP,1
+/PNUM,LINE,1
+/PNUM,AREA,1
+*AFUN,DEG
+
+!----------------------------------------------
+! Define Variables
+iteration = 0
+FILENUM = CHRVAL(iteration)
+
+! Specimen Geometry
+specLx = 30e-3
+specLy = 15e-3
+specLz = 2e-3
+specElemSize = 0.5e-3
+! Specimen Properties
+specE11 = 20e9
+specE22 = 10e9
+specNu12 = 0.3
+specNu21 = specE22*(specNu12/specE11)
+specG12 = 5e9
+specAngle = 0
+
+tol = specElemSize/8 
+resForce = 1000
+
+!----------------------------------------------
+! Define Geometry
+BLC4,0,0,specLx,specLy,specLz
+
+!----------------------------------------------
+! Define Material Properties 
+MP,EX,1,specE11
+!MP,EY,1,specE22
+MP,PRXY,1,specNu12
+!MP,GXY,1,specG12
+
+!----------------------------------------------
+! Define Elements
+! use a 8 node quad element with plane stress
+ET,1,solid186
+!ET,1,plane183,0,,3,
+!R,1,specLz,
+
+! Create a local coordinate system aligned to the material axis
+!LOCAL,11,CART,0,0,0,specAngle
+! Assign off-axis co-ords to elements
+!ESYS,11
+
+!----------------------------------------------
+! Meshing 
+ESIZE,specElemSize
+MAT,1		! Material 1
+TYPE,1		! Element Type 1
+MSHAPE,0	! Use quads
+MSHKEY,2	! Use mapped mesh if possible
+VMESH,1
+EPLOT
+
+!----------------------------------------------
+! Define Loads and Boundary Conditions
+/SOLU
+! Apply boundary conditions in global co-ords
+CSYS,0
+
+! Constrain the bottom edge
+NSEL,S,LOC,X,-tol,tol
+D,ALL,UX,0
+D,ALL,UY,0
+ALLSEL
+
+! Load the top edge
+NSEL,S,LOC,X,specLx-tol,specLx+tol
+*Get,numEdgeNodes,node,0,count
+nodeForce = resForce/numEdgeNodes
+D,ALL,UX,0
+F,ALL,FY,nodeForce
+ALLSEL
+
+! determines what is written to DB file
+OUTRES,ALL,ALL
+SOLVE
+
+!----------------------------------------------
+! Post Processing	
+/POST1
+
+!-----------------------------------------------------
+! Output Simulation Parameters
+*GET,NCOUNT,NODE,0,COUNT
+*CFOPEN,SimParams_%FILENUM%,txt
+*VWRITE,'specLx  ','specLy  ','specLz  ','specESze','resFx   '
+(A8,' |',A8,' |',A8,' |',A8,' |',A8,' |')
+*VWRITE,specLx,specLy,specLz,specElemSize,resForce
+(E9.3,',',E9.3,',',E9.3,',',E9.3,',',E9.3,',',E9.3)
+*VWRITE,'specE11 ','specE22 ','specNu12','specG12','specAng '
+(A8,' |',A8,' |',A8,' |',A8,' |',A8,' |')
+*VWRITE,specE11,specE22,specNu12,specG12,specAngle
+(E9.3,',',E9.3,',',E9.3,',',E9.3,',',E9.3)
+*CFCLOS
+!-----------------------------------------------------
+
+/GRAPHICS,FULL
+RSYS,0 ! Report results in the global cartesian system 
+
+! Setup formatting for output files
+!/HEADER,OFF,OFF,OFF,OFF,OFF,OFF
+/HEADER,ON,ON,ON,ON,ON,OFF
+ALLSEL
+/PAGE,2*NCOUNT,,2*NCOUNT
+
+! Get the node locations and save to file
+/OUTPUT,Node_Locs_%FILENUM%,txt
+NLIST,ALL, , ,XYZ,NODE,NODE,NODE
+/OUTPUT
+
+! Get the element table
+/OUTPUT,Elem_Table_%FILENUM%,txt
+ELIST,ALL
+/OUTPUT
+
+! Get nodal total strains
+/OUTPUT,Node_Disp_%FILENUM%,txt,,
+PRNSOL,U,COMP   
+/OUTPUT
+
+! Get nodal total strains
+/OUTPUT,Node_Strain_%FILENUM%,txt,,
+PRNSOL,EPTO,COMP   
+/OUTPUT	
+
+! Get nodal stress
+/OUTPUT,Node_Stress_%FILENUM%,txt,,
+PRNSOL,S,COMP   
+/OUTPUT	
+
+

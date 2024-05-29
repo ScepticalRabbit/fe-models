@@ -1,0 +1,58 @@
+/PREP7
+
+/CWD,%PATH_A%%PATH_B%%PATH_C%%PATH_D%%PATH_E%%PATH_FLOAD%
+!-------------------------------------------------------------------------
+! READ PRESSURE TABLE
+! Only read pressure file if we have it
+
+! NOTE: CHRVAL() - convert number to character string
+! VALCHR() - convert string to a number
+
+*IF,writeElemFileOnly,EQ,0,THEN
+
+*IF,useTotPress,EQ,1,THEN
+	checkPress = 'Total'
+	*IF,useTimeExtPress,GT,0,THEN
+		rowSkip = 0
+		/INQUIRE,numlines,LINES,pressTotETab%timeExtStr%,csv
+		numRows = numlines-rowSkip-1
+		numCols = eCount
+		*DIM,tabPress,TABLE,numRows,numCols,1,TIME,ELEM
+		*TREAD,tabPress,pressTotETab%timeExtStr%,csv,,rowSkip
+	*ELSE
+		rowSkip = 0
+		/INQUIRE,numlines,LINES,pressTotETab,csv
+		numRows = numlines-rowSkip-1
+		numCols = eCount
+		*DIM,tabPress,TABLE,numRows,numCols,1,TIME,ELEM
+		*TREAD,tabPress,pressTotETab,csv,,rowSkip
+	*ENDIF
+*ELSE
+	checkPress = 'Dynamic'
+	*IF,useTimeExtPress,GT,0,THEN
+		rowSkip = 0
+		/INQUIRE,numlines,LINES,pressETab%timeExtStr%,csv
+		numRows = numlines-rowSkip-1
+		numCols = eCount
+		*DIM,tabPress,TABLE,numRows,numCols,1,TIME,ELEM
+		*TREAD,tabPress,pressETab%timeExtStr%,csv,,rowSkip
+	*ELSE
+		rowSkip = 0
+		/INQUIRE,numlines,LINES,pressETab,csv
+		numRows = numlines-rowSkip-1
+		numCols = eCount
+		*DIM,tabPress,TABLE,numRows,numCols,1,TIME,ELEM
+		*TREAD,tabPress,pressETab,csv,,rowSkip
+	*ENDIF
+*ENDIF
+
+! If we want an additional internal pressure we add it here
+*IF,pipeIntPressOn,EQ,1,THEN
+*TOPER,tabPress,tabPress,ADD,tabPress,1.0,0.0,pipeIntPress
+*ENDIF
+
+*ENDIF
+
+/CWD,%PATH_A%%PATH_B%%PATH_C%%PATH_D%%PATH_E%%PATH_FUNC%
+
+FINISH
